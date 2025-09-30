@@ -1,3 +1,4 @@
+import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 
@@ -6,6 +7,7 @@ class Descriptors:
     Collection of descriptors of an image
     """
 
+    ## Discuss usage of numpy
     @staticmethod
     def bgr_histogram(image_path: str, save_img: bool = False) -> list:
         """
@@ -27,6 +29,9 @@ class Descriptors:
                 hist[col[1] + 256] += 1
                 hist[col[2] + 512] += 1
 
+        hist = np.array(hist,dtype=np.float32)
+        hist /= hist.sum()
+
         if save_img:    
             plt.figure(figsize=(12, 4))
             plt.bar(range(768), hist, width=1.0, color="black")
@@ -38,4 +43,4 @@ class Descriptors:
         return hist
     
 descriptors = Descriptors()
-print(descriptors.bgr_histogram("./BBDD/bbdd_00000.jpg", True))
+print(descriptors.bgr_histogram("../../data/BBDD/bbdd_00000.jpg", True))
