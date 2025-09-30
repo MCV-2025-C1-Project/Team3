@@ -42,5 +42,22 @@ class Metrics:
 
         return np.sum(numerator / denominator)
     
+
+    @staticmethod
+    def histogram_intersection(hist1: NDArray[np.float64], hist2: NDArray[np.float64]) -> float:
+        """
+        Input:
+        -hist1 (1-D numpy array): First image descriptor
+        -hist2 (1-D numpy array): Second image descriptor
+        
+        Returns:
+        -total (float): X2 distance between the two descriptors
+        """
+
+        return np.sum(np.minimum(hist1, hist2))
+    
 metrics = Metrics()
 print(metrics.l1_distance(np.array([1,2,3,4]),np.array([2,2,2,2])))
+print(metrics.x2_dist(np.array([1,2,3,4]),np.array([2,2,2,2])))
+print(metrics.histogram_intersection(np.array([1,2,3,4]),np.array([2,2,2,2])))
+
