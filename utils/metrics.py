@@ -154,7 +154,9 @@ def average_precision_k(ground_truth : list, predicted : list, k : int) -> float
             num_hits += 1
             score += num_hits / (i + 1.0)
             
-    return score / min(len(ground_truth), k)
+    if num_hits > 0:
+        return score / num_hits
+    return 0
 
 if __name__ == "__main__":
     vec1 = np.array([1.0, 2.0, 3.0, 4.0])

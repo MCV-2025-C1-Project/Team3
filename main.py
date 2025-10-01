@@ -10,11 +10,13 @@ import matplotlib.pyplot as plt
 logging.getLogger("PIL").setLevel(logging.WARNING)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
+NUMBER_OF_FILES_DEV = 30
 NAME_OF_THE_DEV_SET = "qsd1_w1"
 
 # These are the considered descriptors
 wanted_descriptors = [descriptors.gray_descriptor, 
-                      descriptors.rgb_descriptor
+                      descriptors.rgb_descriptor,
+                      descriptors.hsv_descriptor
                       ]
 
 wanted_distances   = [metrics.euclidean_distance,
@@ -156,12 +158,12 @@ def visualize_scores(scores : list):
     
     for i in range(len(descriptors_names)):
         for j in range(len(distances_names)):
-            ax.text(j, i, f"{scores[i][j]:.2f}",
+            ax.text(j, i, f"{scores[i][j]:.3f}",
                     ha="center", va="center", color="white", fontsize=8)
             
     plt.colorbar(cax)
     plt.savefig("results/obtained_scores.png", dpi=300, bbox_inches="tight")
-        
+     
 def resume_results(all_metrics : list, ground_truth : list):
     """Creates a heatmap with distances and descriptors with the AP@K to have a visual approach"""
     log.info("Rendering visual results")
@@ -177,10 +179,14 @@ def resume_results(all_metrics : list, ground_truth : list):
                 predictions = np.argsort(distances)[:K]
                 score = metrics.average_precision_k(ground_truth[image_num], predictions, K)
                 descriptor_scores[descriptor_type][distance_type] += score
+            
 
+    #We do the mean of the AP@k values
     for i in range(len(descriptor_scores)):
         for j in range(len(descriptor_scores[0])):
-            descriptor_scores[i][j] /= len(descriptor_scores[0])
+            descriptor_scores[i][j] = descriptor_scores[i][j] / NUMBER_OF_FILES_DEV
+    
+    print(descriptor_scores)
     
     visualize_scores(descriptor_scores)
     
