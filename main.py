@@ -17,8 +17,7 @@ NUMBER_OF_FILES_DEV = len(os.listdir(f"data/{NAME_OF_THE_DEV_SET}"))
 # These are the considered descriptors
 wanted_descriptors = [descriptors.gray_descriptor, 
                       descriptors.rgb_descriptor,
-                      descriptors.hsv_descriptor,
-                      descriptors.bad_descriptor
+                      descriptors.hsv_descriptor
                       ]
 
 wanted_distances   = [metrics.euclidean_distance,

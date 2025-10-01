@@ -62,9 +62,6 @@ def compute_histogram(img: NDArray[np.uint8]) -> NDArray[np.float32]:
     hist /= (hist.sum() + 1e-7)
     return hist
 
-def bad_descriptor(img : NDArray, name_of_the_set: str, image_number: int, visualize: bool = False):
-    return np.zeros((255))
-
 def rgb_descriptor(img : NDArray, name_of_the_set: str, image_number: int, visualize: bool = False) -> NDArray:
     """
     Computes the concatenation of the RGB histograms

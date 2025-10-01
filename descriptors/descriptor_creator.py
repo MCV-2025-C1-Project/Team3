@@ -20,8 +20,8 @@ NUMBER_OF_FILES = len(os.listdir(f"data/{NAME_OF_THE_DB_SET}"))
 
 wanted_descriptors = [descriptors.gray_descriptor, 
                       descriptors.rgb_descriptor,
-                      descriptors.hsv_descriptor,
-                      descriptors.bad_descriptor]
+                      descriptors.hsv_descriptor
+                      ]
 
 #It would be more efficient to pass the loaded image, since we can mantain it in
 
