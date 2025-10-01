@@ -14,6 +14,7 @@ import utils.descriptors as descriptors
 import numpy as np
 
 NUMBER_OF_FILES = 287
+NAME_OF_THE_SET = "BBDD"
 
 
 wanted_descriptors = [descriptors.gray_descriptor, 
@@ -28,7 +29,7 @@ for i in range(NUMBER_OF_FILES):
             image_path = f"data/BBDD/bbdd_{i:05d}.jpg"
             img = cv2.imread(image_path)
             for idx, function in enumerate(wanted_descriptors):
-                descriptor = function(img)
+                descriptor = function(img, NAME_OF_THE_SET,i,visualize=True)
                 np.savetxt(files[idx], descriptor[None])
                 
 for file in files:

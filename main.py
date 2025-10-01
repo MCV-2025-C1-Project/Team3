@@ -6,6 +6,9 @@ import pickle
 import numpy as np
 from pathlib import Path
 
+
+NAME_OF_THE_DEV_SET = "qsd1_w1"
+
 # These are the considered descriptors
 wanted_descriptors = [descriptors.gray_descriptor, 
                       descriptors.rgb_descriptor]
@@ -28,7 +31,8 @@ if __name__ == "__main__":
     setup_logging()
     log = logging.getLogger(__name__)
     
-    file_path = "data/qsd1_w1/gt_corresps.pkl"
+    file_path = f"data/{NAME_OF_THE_DEV_SET}/gt_corresps.pkl"
+
 
     with open(file_path, "rb") as f:
         ground_truth = pickle.load(f)
@@ -40,11 +44,11 @@ if __name__ == "__main__":
     
     #For each image in the development folder, computes the specified descriptors
     for i in range(30):
-        image_path = f"data/qsd1_w1/{i:05d}.jpg"
+        image_path = f"data/{NAME_OF_THE_DEV_SET}/{i:05d}.jpg"
         img = cv2.imread(image_path)
         image_descriptors = []
         for function in wanted_descriptors:
-            descriptor = function(img)
+            descriptor = function(img, NAME_OF_THE_DEV_SET, i, visualize=True)
             image_descriptors.append(descriptor)
         all_descriptors.append(image_descriptors)
         
