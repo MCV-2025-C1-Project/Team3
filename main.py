@@ -24,20 +24,9 @@ files = [open(f"descriptors/{name}.txt", "r") for name in names]
 def setup_logging():
     """Setup logging configuration from .ini file"""
     logging.config.fileConfig("utils/logging.ini", disable_existing_loggers=False)
-
-
-if __name__ == "__main__":
     
-    setup_logging()
-    log = logging.getLogger(__name__)
-    
-    file_path = f"data/{NAME_OF_THE_DEV_SET}/gt_corresps.pkl"
-
-
-    with open(file_path, "rb") as f:
-        ground_truth = pickle.load(f)
-        
-    
+def compute_development_descriptors() -> list:
+    """Computes the descriptors of the development set"""
     all_descriptors = []
     
     log.info("Computing all the descriptor for development images")
@@ -55,6 +44,10 @@ if __name__ == "__main__":
     
     log.info("Descriptors for development images computed")
     
+    return all_descriptors
+
+def load_precomputed_descriptors() -> list:
+    """Loads the precomputated descriptors from the BBDD dataset"""
     log.info("Loading precomputed descriptors of BBDD images")
     
     precomputed_descriptors = []
@@ -74,7 +67,11 @@ if __name__ == "__main__":
         
         
     log.info("Loaded")
-    
+
+    return precomputed_descriptors
+
+def compute_distances(all_descriptors : list, precomputed_descriptors : list) -> list:
+    """Computes the distances between the development and BBDD datasets"""
     log.info("Computing distances between each development and BBDD image")
     
     all_metrics = []
@@ -97,6 +94,10 @@ if __name__ == "__main__":
 
     log.info("Computed")
     
+    return all_metrics
+
+def write_results(all_metrics) -> list:
+    """Writes the results on a txt. One per descriptor used"""
     log.info("Outputting results for each descriptor on results/[descriptor_name]_res.txt")
     
     Path("results").mkdir(exist_ok=True)
@@ -119,3 +120,23 @@ if __name__ == "__main__":
             ranking = np.argsort(np.argsort(metric))
             objective_file.write(f"{ranking[ground_truth[image_num]]}\n")
             objective_file.write(f"-----------------------------------------------------------------\n")
+    
+
+if __name__ == "__main__":
+    
+    setup_logging()
+    log = logging.getLogger(__name__)
+    
+    file_path = f"data/{NAME_OF_THE_DEV_SET}/gt_corresps.pkl"
+
+
+    with open(file_path, "rb") as f:
+        ground_truth = pickle.load(f)
+        
+    all_descriptors = compute_development_descriptors()
+    
+    precomputed_descriptors = load_precomputed_descriptors()
+    
+    all_metrics = compute_distances(all_descriptors, precomputed_descriptors)
+    
+    write_results(all_metrics)

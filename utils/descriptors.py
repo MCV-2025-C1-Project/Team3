@@ -31,9 +31,7 @@ def visualize_histogram(hist: NDArray[np.float32], name_of_the_set: str, histogr
     plt.title("Histogram")
     
     #Make sure results folder exists, otherwise create it
-    Path("results").mkdir(exist_ok=True)
-    Path(f"results/{name_of_the_set}").mkdir(exist_ok=True)
-    Path(f"results/{name_of_the_set}/{histogram_name}").mkdir(exist_ok=True)
+    Path(f"results/{name_of_the_set}/{histogram_name}").mkdir(parents=True, exist_ok=True)
 
     plt.savefig(f"results/{name_of_the_set}/{histogram_name}/{image_number:05d}.png", dpi=300, bbox_inches="tight")
     plt.close()
