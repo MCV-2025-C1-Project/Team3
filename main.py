@@ -20,7 +20,7 @@ wanted_distances   = [metrics.euclidean_distance,
                       ]
 
 descriptors_names = [f.__name__ for f in wanted_descriptors]
-distances_names   = [f.__name__ for f in wanted_distances]
+distances_names   = [f.__name__ for f in wanted_distances  ]
 
 #The amout of results showed (top k)
 K = 5
@@ -93,8 +93,6 @@ def compute_distances(all_descriptors : list, precomputed_descriptors : list) ->
             for distance_function in wanted_distances:
                 distances = []
                 for objective_descriptor in objective_descriptors:
-                #This distance can be changed as desired. Later on I can make also that
-                #all distance metrics are computed, but is probably irrelevant.
                     distances.append(distance_function(descriptor, objective_descriptor))
                 found_metrics.append(distances)
             image_metrics.append(found_metrics)

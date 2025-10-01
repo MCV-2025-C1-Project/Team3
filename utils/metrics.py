@@ -127,7 +127,34 @@ def bhattacharyya_distance(x: NDArray, y: NDArray) -> float:
     
     return -np.log(np.sum(np.sqrt(x * y)) + 1e-10)
 
+def average_precision_k(ground_truth : list, predicted : list, k : int) -> float:
+    """
+    Compute the average precision at K
+    
+    Parameters
+    ----------
+        ground truth : list
+            A list of the fround truth items
+        predicted : list
+            A list of the predicted items
+        k : int
+            The maximum number of predictions to consider
 
+    Returns
+    -------
+        out : float
+            Average precision at k
+    """
+    
+    score = 0.0
+    num_hits = 0.0
+    
+    for i, p in enumerate(predicted[:k]):
+        if p in ground_truth:
+            num_hits += 1
+            score += num_hits / (i + 1.0)
+            
+    return score / min(len(ground_truth), k)
 
 if __name__ == "__main__":
     vec1 = np.array([1.0, 2.0, 3.0, 4.0])
