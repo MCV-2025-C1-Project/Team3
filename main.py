@@ -16,7 +16,8 @@ NAME_OF_THE_DEV_SET = "qsd1_w1"
 # These are the considered descriptors
 wanted_descriptors = [descriptors.gray_descriptor, 
                       descriptors.rgb_descriptor,
-                      descriptors.hsv_descriptor
+                      descriptors.hsv_descriptor,
+                      descriptors.bad_descriptor
                       ]
 
 wanted_distances   = [metrics.euclidean_distance,
@@ -171,7 +172,7 @@ def resume_results(all_metrics : list, ground_truth : list):
     
     #A matrix where a_ij is the sum of the scores gotten using descriptor i
     # and distance metric j
-    descriptor_scores = [[0] * len(wanted_distances)] * len(wanted_descriptors)
+    descriptor_scores = [[0 for _ in range(len(distances_names))] for _ in range(len(descriptors_names))]
     for image_num , image_metrics in enumerate(all_metrics):
         for descriptor_type, metric in enumerate(image_metrics):
             for distance_type, distance_name in enumerate(distances_names):
@@ -179,14 +180,11 @@ def resume_results(all_metrics : list, ground_truth : list):
                 predictions = np.argsort(distances)[:K]
                 score = metrics.average_precision_k(ground_truth[image_num], predictions, K)
                 descriptor_scores[descriptor_type][distance_type] += score
-            
 
     #We do the mean of the AP@k values
     for i in range(len(descriptor_scores)):
         for j in range(len(descriptor_scores[0])):
             descriptor_scores[i][j] = descriptor_scores[i][j] / NUMBER_OF_FILES_DEV
-    
-    print(descriptor_scores)
     
     visualize_scores(descriptor_scores)
     

@@ -19,7 +19,8 @@ NAME_OF_THE_SET = "BBDD"
 
 wanted_descriptors = [descriptors.gray_descriptor, 
                       descriptors.rgb_descriptor,
-                      descriptors.hsv_descriptor]
+                      descriptors.hsv_descriptor,
+                      descriptors.bad_descriptor]
 
 #It would be more efficient to pass the loaded image, since we can mantain it in
 
