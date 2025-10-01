@@ -26,11 +26,11 @@ names = [f.__name__ for f in wanted_descriptors]
 files = [open(f"descriptors/{name}.txt", "w") for name in names]
 
 for i in range(NUMBER_OF_FILES):
-            image_path = f"data/BBDD/bbdd_{i:05d}.jpg"
-            img = cv2.imread(image_path)
-            for idx, function in enumerate(wanted_descriptors):
-                descriptor = function(img, NAME_OF_THE_SET,i,visualize=True)
-                np.savetxt(files[idx], descriptor[None])
+    image_path = f"data/BBDD/bbdd_{i:05d}.jpg"
+    img = cv2.imread(image_path)
+    for idx, function in enumerate(wanted_descriptors):
+        descriptor = function(img, NAME_OF_THE_SET,i,visualize=False)
+        np.savetxt(files[idx], descriptor[None])
                 
 for file in files:
     file.close()
