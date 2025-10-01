@@ -1,12 +1,12 @@
+"""
+    Collection of descriptors of an image
+"""
+
 import numpy as np
 import cv2
 from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 from pathlib import Path
-
-"""
-    Collection of descriptors of an image
-"""
 
 ## Discuss usage of numpy
 def compute_histogram(img: NDArray[np.uint8], save_img: bool = False, save_name : str = "histogram") -> NDArray[np.float32]:
@@ -22,7 +22,8 @@ def compute_histogram(img: NDArray[np.uint8], save_img: bool = False, save_name 
             If set to `True` saves the image on `results/{save_name}.png`
         save_name : str
             If save_img is `True` it sets the name of the saved image
-    Returns:
+    Returns
+    -------
         hist : array-like
             Histogram of the given image
     """
@@ -35,9 +36,6 @@ def compute_histogram(img: NDArray[np.uint8], save_img: bool = False, save_name 
     unique, counts = np.unique(img, return_counts=True)
     hist[unique] = counts
     
-    print(unique)
-    print(counts)
-
     hist /= (hist.sum() + 1e-7)
 
 
