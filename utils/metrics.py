@@ -134,7 +134,7 @@ def average_precision_k(ground_truth : list, predicted : list, k : int) -> float
     Parameters
     ----------
         ground truth : list
-            A list of the fround truth items
+            A list of the ground truth items
         predicted : list
             A list of the predicted items
         k : int

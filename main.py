@@ -1,4 +1,5 @@
 from utils import descriptors, metrics
+import os
 import cv2
 import logging
 import logging.config
@@ -10,8 +11,8 @@ import matplotlib.pyplot as plt
 logging.getLogger("PIL").setLevel(logging.WARNING)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
-NUMBER_OF_FILES_DEV = 30
 NAME_OF_THE_DEV_SET = "qsd1_w1"
+NUMBER_OF_FILES_DEV = len(os.listdir(f"data/{NAME_OF_THE_DEV_SET}"))
 
 # These are the considered descriptors
 wanted_descriptors = [descriptors.gray_descriptor, 
@@ -33,18 +34,29 @@ K = 5
 #The precomputed files for the BBDD images must exist
 files = [open(f"descriptors/{name}.txt", "r") for name in descriptors_names]
 
+
+
+#---------------------------------
+
+
 def setup_logging():
-    """Setup logging configuration from .ini file"""
+    """
+    Setup logging configuration from .ini file
+    """
+
     logging.config.fileConfig("utils/logging.ini", disable_existing_loggers=False)
     
 def compute_development_descriptors() -> list:
-    """Computes the descriptors of the development set"""
+    """
+    Computes the descriptors of the development set
+    """
+
     all_descriptors = []
     
     log.info("Computing all the descriptor for development images")
     
     #For each image in the development folder, computes the specified descriptors
-    for i in range(30):
+    for i in range(NUMBER_OF_FILES_DEV):
         image_path = f"data/{NAME_OF_THE_DEV_SET}/{i:05d}.jpg"
         img = cv2.imread(image_path)
         image_descriptors = []
@@ -59,36 +71,36 @@ def compute_development_descriptors() -> list:
     return all_descriptors
 
 def load_precomputed_descriptors() -> list:
-    """Loads the precomputated descriptors from the BBDD dataset"""
+    """
+    Loads the precomputated descriptors from the BBDD dataset
+    """
+
     log.info("Loading precomputed descriptors of BBDD images")
     
     precomputed_descriptors = []
-    
-    i = 0
     
     #Reading of precomputed descriptors on the BBDD
     for file in files:
         images_descriptors = []
         for line in file:
-            i += 1
             arr = np.fromstring(line, sep=" ")
             images_descriptors.append(arr)
         file.close()
         
         precomputed_descriptors.append(images_descriptors)
         
-        
     log.info("Loaded")
 
     return precomputed_descriptors
 
 def compute_distances(all_descriptors : list, precomputed_descriptors : list) -> list:
-    """Computes the distances between the development and BBDD datasets"""
+    """
+    Computes the distances between the development and BBDD datasets
+    """
+
     log.info("Computing distances between each development and BBDD image")
     
     all_metrics = []
-    
-    #Computation of the euclidian distance between development and BBDD images
     
     for objective_image in all_descriptors:
         image_metrics = []
@@ -110,7 +122,10 @@ def compute_distances(all_descriptors : list, precomputed_descriptors : list) ->
     return all_metrics
 
 def write_results(all_metrics, ground_truth : list):
-    """Writes the results on a txt. One per descriptor used"""
+    """
+    Writes the results on a txt. One per descriptor used
+    """
+
     log.info("Outputting results for each descriptor on results/[descriptor_name]_res.txt")
     
     Path("results").mkdir(exist_ok=True)
@@ -166,7 +181,10 @@ def visualize_scores(scores : list):
     plt.savefig("results/obtained_scores.png", dpi=300, bbox_inches="tight")
      
 def resume_results(all_metrics : list, ground_truth : list):
-    """Creates a heatmap with distances and descriptors with the AP@K to have a visual approach"""
+    """
+    Creates a heatmap with distances and descriptors with the AP@K to have a visual approach
+    """
+
     log.info("Rendering visual results")
     Path("results").mkdir(exist_ok=True)
     

@@ -9,12 +9,13 @@ run it from the Team3 folder using python -m descriptors.descriptor_creator
 
 """
 
+import os
 import cv2
 import utils.descriptors as descriptors
 import numpy as np
 
-NUMBER_OF_FILES = 287
-NAME_OF_THE_SET = "BBDD"
+NAME_OF_THE_DB_SET = "BBDD"
+NUMBER_OF_FILES = len(os.listdir(f"data/{NAME_OF_THE_DB_SET}"))
 
 
 wanted_descriptors = [descriptors.gray_descriptor, 
@@ -31,7 +32,7 @@ for i in range(NUMBER_OF_FILES):
     image_path = f"data/BBDD/bbdd_{i:05d}.jpg"
     img = cv2.imread(image_path)
     for idx, function in enumerate(wanted_descriptors):
-        descriptor = function(img, NAME_OF_THE_SET,i,visualize=False)
+        descriptor = function(img, NAME_OF_THE_DB_SET,i,visualize=False)
         np.savetxt(files[idx], descriptor[None])
                 
 for file in files:
