@@ -5,8 +5,10 @@ import logging.config
 import pickle
 import numpy as np
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 NAME_OF_THE_DEV_SET = "qsd1_w1"
 
@@ -104,7 +106,7 @@ def compute_distances(all_descriptors : list, precomputed_descriptors : list) ->
     
     return all_metrics
 
-def write_results(all_metrics, ground_truth : list) -> list:
+def write_results(all_metrics, ground_truth : list):
     """Writes the results on a txt. One per descriptor used"""
     log.info("Outputting results for each descriptor on results/[descriptor_name]_res.txt")
     
@@ -141,7 +143,49 @@ def write_results(all_metrics, ground_truth : list) -> list:
                 objective_file.write(f"--------------------------------------------------------------\n")
             
             objective_file.write(f"|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||\n")
+ 
+def visualize_scores(scores : list):
     
+    fig, ax = plt.subplots()
+    cax = ax.matshow(scores, cmap="viridis")
+    
+    ax.set_xticks(range(len(distances_names)))
+    ax.set_yticks(range(len(descriptors_names)))
+    ax.set_xticklabels(distances_names)
+    ax.set_yticklabels(descriptors_names)
+    
+    for i in range(len(descriptors_names)):
+        for j in range(len(distances_names)):
+            ax.text(j, i, f"{scores[i][j]:.2f}",
+                    ha="center", va="center", color="white", fontsize=8)
+            
+    plt.colorbar(cax)
+    plt.savefig("results/obtained_scores.png", dpi=300, bbox_inches="tight")
+        
+def resume_results(all_metrics : list, ground_truth : list):
+    """Creates a heatmap with distances and descriptors with the AP@K to have a visual approach"""
+    log.info("Rendering visual results")
+    Path("results").mkdir(exist_ok=True)
+    
+    #A matrix where a_ij is the sum of the scores gotten using descriptor i
+    # and distance metric j
+    descriptor_scores = [[0] * len(wanted_distances)] * len(wanted_descriptors)
+    for image_num , image_metrics in enumerate(all_metrics):
+        for descriptor_type, metric in enumerate(image_metrics):
+            for distance_type, distance_name in enumerate(distances_names):
+                distances = np.array(metric[distance_type])
+                predictions = np.argsort(distances)[:K]
+                score = metrics.average_precision_k(ground_truth[image_num], predictions, K)
+                descriptor_scores[descriptor_type][distance_type] += score
+
+    for i in range(len(descriptor_scores)):
+        for j in range(len(descriptor_scores[0])):
+            descriptor_scores[i][j] /= len(descriptor_scores[0])
+    
+    visualize_scores(descriptor_scores)
+    
+    log.info("Rendered")
+            
 
 if __name__ == "__main__":
     
@@ -161,3 +205,5 @@ if __name__ == "__main__":
     all_metrics = compute_distances(all_descriptors, precomputed_descriptors)
     
     write_results(all_metrics, ground_truth)
+    
+    resume_results(all_metrics, ground_truth)
