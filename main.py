@@ -4,8 +4,19 @@ import logging
 import logging.config
 import pickle
 import numpy as np
+from pathlib import Path
 
-DESCRIPTOR_FILE = "gray_example.txt"
+# These are the considered descriptors
+wanted_descriptors = [descriptors.gray_descriptor, 
+                      descriptors.rgb_descriptor]
+
+names = [f.__name__ for f in wanted_descriptors]
+
+#The amout of results showed (top k)
+K = 5
+
+#The precomputed files for the BBDD images must exist
+files = [open(f"descriptors/{name}.txt", "r") for name in names]
 
 def setup_logging():
     """Setup logging configuration from .ini file"""
@@ -21,39 +32,86 @@ if __name__ == "__main__":
 
     with open(file_path, "rb") as f:
         ground_truth = pickle.load(f)
+        
     
-    image_path = f"data/qsd1_w1/{0:05d}.jpg"
-    log.debug(f"Using image_path: {image_path}")
+    all_descriptors = []
     
-    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    descriptor = descriptors.compute_histogram(img)
+    log.info("Computing all the descriptor for development images")
     
-    #Load all the precomputed descriptors
-    gray_descriptors = []
-    with open(f"descriptors/{DESCRIPTOR_FILE}", "r") as f:
-        for line in f:
+    #For each image in the development folder, computes the specified descriptors
+    for i in range(30):
+        image_path = f"data/qsd1_w1/{i:05d}.jpg"
+        img = cv2.imread(image_path)
+        image_descriptors = []
+        for function in wanted_descriptors:
+            descriptor = function(img)
+            image_descriptors.append(descriptor)
+        all_descriptors.append(image_descriptors)
+        
+    
+    log.info("Descriptors for development images computed")
+    
+    log.info("Loading precomputed descriptors of BBDD images")
+    
+    precomputed_descriptors = []
+    
+    i = 0
+    
+    #Reading of precomputed descriptors on the BBDD
+    for file in files:
+        images_descriptors = []
+        for line in file:
+            i += 1
             arr = np.fromstring(line, sep=" ")
-            gray_descriptors.append(arr)
-    
-    log.info("Precomputed descriptors loaded")
-    
-    final_metrics = np.array([0]*len(gray_descriptors), dtype=np.float32)
-    
-    for idx, i in enumerate(gray_descriptors):
-        final_metrics[idx] = metrics.euclidean_distance(descriptor, i)
+            images_descriptors.append(arr)
+        file.close()
         
-    log.info("Computed metrics against all database")
-    
-    #Prints top 5 and their metric values
-    best_distances = np.argsort(final_metrics)
-    ranks = np.argsort(best_distances)
-    print("Best found candidates:")
-    print(best_distances[:5])
-    print(final_metrics[best_distances[:5]])
-    
-    #Prints the expected result for the selected image and where it is 
-    print("Expected image:")
-    print(ground_truth[0])
-    print("Ranking position of the expected image:")
-    print(f"{ranks[ground_truth[0]][0]} position")
+        precomputed_descriptors.append(images_descriptors)
         
+        
+    log.info("Loaded")
+    
+    log.info("Computing distances between each development and BBDD image")
+    
+    all_metrics = []
+    
+    #Computation of the euclidian distance between development and BBDD images
+    
+    for objective_image in all_descriptors:
+        image_metrics = []
+        for idx, descriptor in enumerate(objective_image):
+            found_metrics = []
+            objective_descriptors = precomputed_descriptors[idx]
+            for objective_descriptor in objective_descriptors:
+                #This distance can be changed as desired. Later on I can make also that
+                #all distance metrics are computed, but is probably irrelevant.
+                found_metrics.append(metrics.euclidean_distance(descriptor, objective_descriptor))
+            image_metrics.append(np.array(found_metrics))
+            
+        all_metrics.append(image_metrics)
+        
+
+    log.info("Computed")
+    
+    log.info("Outputting results for each descriptor on results/[descriptor_name]_res.txt")
+    
+    Path("results").mkdir(exist_ok=True)
+    
+    result_files = [open(f"results/{name}_res.txt", "w") for name in names]
+    
+    for image_num, image_metrics in enumerate(all_metrics):
+        for descriptor_type, metric in enumerate(image_metrics):
+            objective_file = result_files[descriptor_type]
+            objective_file.write(f"Image: {image_num:05d}.jpg\n")
+            objective_file.write(f"Top {K} images:\n")
+            top_k_res = np.argsort(metric)[:K]
+            np.savetxt(objective_file, top_k_res[None], fmt="%d")
+            objective_file.write(f"Distance values:\n")
+            top_k_values = metric[top_k_res]
+            np.savetxt(objective_file, top_k_values[None])
+            objective_file.write(f"Ground truth:\n")
+            objective_file.write(f"{ground_truth[image_num][0]}\n")
+            objective_file.write(f"Ranking of ground truth in evaluation (from 0):\n")
+            ranking = np.argsort(np.argsort(metric))
+            objective_file.write(f"{ranking[ground_truth[image_num]]}\n")
+            objective_file.write(f"-----------------------------------------------------------------\n")
