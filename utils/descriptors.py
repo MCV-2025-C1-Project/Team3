@@ -54,6 +54,42 @@ def compute_histogram(img: NDArray[np.uint8], save_img: bool = False, save_name 
 
     return hist
 
+def rgb_descriptor(img : NDArray) -> NDArray:
+    """
+    Computes the concatenation of the RGB histograms
+    
+    Parameters
+    ----------
+        img : MatLike
+            An RGB image
+    Returns
+    -------
+        hist : array-like
+            Concatenated RGB histogram of the image
+    """
+    r = compute_histogram(img[0])
+    g = compute_histogram(img[1])
+    b = compute_histogram(img[2])
+    rgb_hist = np.concat([r,g,b])
+    return rgb_hist
+
+def gray_descriptor(img : NDArray) -> NDArray:
+    """
+    Computes the gray level histogram of an image
+    
+    Parameters
+    ----------
+        image_path : str
+            An RGB image
+    Returns
+    -------
+        hist : array-like
+            Gray level histogram the image
+    """
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    gray_hist = compute_histogram(img)
+    return gray_hist
+
 
 if __name__ == "__main__":
     

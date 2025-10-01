@@ -5,7 +5,7 @@ Precomputes the descriptors for all the DDBB images.
 """
 
 To run this without issues because of python not considering it part of the package,
-run it from the Team3 folder using python -m descriptors/descriptor_creator.py
+run it from the Team3 folder using python -m descriptors.descriptor_creator
 
 """
 
@@ -13,25 +13,28 @@ import cv2
 import utils.descriptors as descriptors
 import numpy as np
 
-def rgb_descriptor(image_path : str) -> np.ndarray:
-    img = cv2.imread(image_path)
-    r = descriptors.compute_histogram(img[0])
-    g = descriptors.compute_histogram(img[1])
-    b = descriptors.compute_histogram(img[2])
-    rgb_hist = np.concat([r,g,b])
-    return rgb_hist
-
-def gray_descriptor(image_path : str) -> np.ndarray:
-    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    gray_hist = descriptors.compute_histogram(img[0])
-    return gray_hist
-
 NUMBER_OF_FILES = 287
-RESULT_FILENAME = "gray_example.txt"
 
-with open(f"descriptors/{RESULT_FILENAME}", "w") as f:
-    for i in range(NUMBER_OF_FILES):
-        image_path = f"data/BBDD/bbdd_{i:05d}.jpg"
-        descriptor = gray_descriptor(image_path)
-        np.savetxt(f, descriptor[None])
+
+wanted_descriptors = [descriptors.gray_descriptor, 
+                      descriptors.rgb_descriptor]
+
+#It would be more efficient to pass the loaded image, since we can mantain it in
+
+names = [f.__name__ for f in wanted_descriptors]
+files = [open(f"descriptors/{name}.txt", "w") for name in names]
+
+for i in range(NUMBER_OF_FILES):
+            image_path = f"data/BBDD/bbdd_{i:05d}.jpg"
+            img = cv2.imread(image_path)
+            for idx, function in enumerate(wanted_descriptors):
+                descriptor = function(img)
+                np.savetxt(files[idx], descriptor[None])
+                
+for file in files:
+    file.close()
+                
+
+
+        
     
