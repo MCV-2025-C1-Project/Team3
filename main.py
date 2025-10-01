@@ -12,7 +12,7 @@ logging.getLogger("PIL").setLevel(logging.WARNING)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 NAME_OF_THE_DEV_SET = "qsd1_w1"
-NUMBER_OF_FILES_DEV = len(os.listdir(f"data/{NAME_OF_THE_DEV_SET}"))
+NUMBER_OF_IMAGES_DEV = len(os.listdir(f"data/{NAME_OF_THE_DEV_SET}")) - 1
 
 # These are the considered descriptors
 wanted_descriptors = [descriptors.gray_descriptor, 
@@ -59,7 +59,7 @@ def compute_development_descriptors() -> list:
     log.info("Computing all the descriptor for development images")
     
     #For each image in the development folder, computes the specified descriptors
-    for i in range(NUMBER_OF_FILES_DEV):
+    for i in range(NUMBER_OF_IMAGES_DEV):
         image_path = f"data/{NAME_OF_THE_DEV_SET}/{i:05d}.jpg"
         img = cv2.imread(image_path)
         image_descriptors = []
@@ -212,7 +212,7 @@ def resume_results(all_metrics : list, ground_truth : list):
     #We do the mean of the AP@k values
     for i in range(len(descriptor_scores)):
         for j in range(len(descriptor_scores[0])):
-            descriptor_scores[i][j] = descriptor_scores[i][j] / NUMBER_OF_FILES_DEV
+            descriptor_scores[i][j] = descriptor_scores[i][j] / NUMBER_OF_IMAGES_DEV
     
     visualize_scores(descriptor_scores)
     
