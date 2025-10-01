@@ -21,11 +21,15 @@ wanted_descriptors = [descriptors.gray_descriptor,
                       ]
 
 wanted_distances   = [metrics.euclidean_distance,
-                      metrics.x2_dist
+                      metrics.x2_dist,
+                      metrics.bhattacharyya_distance,
+                      metrics.l1_distance,
+                      (metrics.histogram_intersection, 1),
+                      (metrics.hellinger_kernel, 1)
                       ]
 
 descriptors_names = [f.__name__ for f in wanted_descriptors]
-distances_names   = [f.__name__ for f in wanted_distances  ]
+distances_names   = [(f[0].__name__ if isinstance(f, tuple) else f.__name__)for f in wanted_distances  ]
 
 #The amout of results showed (top k)
 K = 5
@@ -107,6 +111,8 @@ def compute_distances(all_descriptors : list, precomputed_descriptors : list) ->
             found_metrics = []
             objective_descriptors = precomputed_descriptors[idx]
             for distance_function in wanted_distances:
+                if isinstance(distance_function, tuple):
+                    distance_function = distance_function[0]
                 distances = []
                 for objective_descriptor in objective_descriptors:
                     distances.append(distance_function(descriptor, objective_descriptor))
@@ -143,6 +149,9 @@ def write_results(all_metrics, ground_truth : list):
                 
                 objective_file.write(f"Top {K} images:\n")
                 distances = np.array(metric[distance_type])
+                if isinstance(wanted_distances[distance_type], tuple):
+                    #We add a very little number to ensure non-zero divisions and stability for small numbers
+                    distances = 1 / (distances + 1e-16)
                 top_k_res = np.argsort(distances)[:K]
                 np.savetxt(objective_file, top_k_res[None], fmt="%d")
                 
@@ -168,7 +177,7 @@ def visualize_scores(scores : list):
     
     ax.set_xticks(range(len(distances_names)))
     ax.set_yticks(range(len(descriptors_names)))
-    ax.set_xticklabels(distances_names)
+    ax.set_xticklabels(distances_names, rotation=90)
     ax.set_yticklabels(descriptors_names)
     
     for i in range(len(descriptors_names)):
@@ -194,6 +203,8 @@ def resume_results(all_metrics : list, ground_truth : list):
         for descriptor_type, metric in enumerate(image_metrics):
             for distance_type, distance_name in enumerate(distances_names):
                 distances = np.array(metric[distance_type])
+                if isinstance(wanted_distances[distance_type], tuple):
+                    distances = 1 / (distances + 1e-16)
                 predictions = np.argsort(distances)[:K]
                 score = metrics.average_precision_k(ground_truth[image_num], predictions, K)
                 descriptor_scores[descriptor_type][distance_type] += score
