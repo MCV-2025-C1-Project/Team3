@@ -1,5 +1,4 @@
-from utils import descriptors, metrics
-import os
+from utils import metrics, config
 import cv2
 import logging
 import logging.config
@@ -11,31 +10,19 @@ import matplotlib.pyplot as plt
 logging.getLogger("PIL").setLevel(logging.WARNING)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
-NAME_OF_THE_DEV_SET = "qsd1_w1"
-NUMBER_OF_IMAGES_DEV = len(os.listdir(f"data/{NAME_OF_THE_DEV_SET}")) - 1
-
-# These are the considered descriptors
-wanted_descriptors = [descriptors.gray_descriptor, 
-                      descriptors.rgb_descriptor,
-                      descriptors.hsv_descriptor
-                      ]
-
-wanted_distances   = [metrics.euclidean_distance,
-                      metrics.x2_dist,
-                      metrics.bhattacharyya_distance,
-                      metrics.l1_distance,
-                      (metrics.histogram_intersection, 1),
-                      (metrics.hellinger_kernel, 1)
-                      ]
-
-descriptors_names = [f.__name__ for f in wanted_descriptors]
-distances_names   = [(f[0].__name__ if isinstance(f, tuple) else f.__name__)for f in wanted_distances  ]
-
+NUMBER_IMAGE_DEV = config.count_jpgs(config.DEV_DIR)
+NAME_OF_DEV_SET = config.DEV_NAME
+WANTED_DESCRIPTORS_ONLINE = config.WANTED_DESCRIPTORS_ONLINE
+WANTED_DISTANCES = config.WANTED_DISTANCES
 #The amout of results showed (top k)
-K = 5
+K = config.TOP_K
+
+descriptors_names = [f.__name__ for f in  WANTED_DESCRIPTORS_ONLINE]
+distances_names   = [(f[0].__name__ if isinstance(f, tuple) else f.__name__)for f in  WANTED_DISTANCES]
 
 #The precomputed files for the BBDD images must exist
-files = [open(f"descriptors/{name}.txt", "r") for name in descriptors_names]
+files = [(config.DESCRIPTORS_TYPE_DIR / f"{name}.txt").open("r") for name in descriptors_names]
+
 
 
 
@@ -59,12 +46,12 @@ def compute_development_descriptors() -> list:
     log.info("Computing all the descriptor for development images")
     
     #For each image in the development folder, computes the specified descriptors
-    for i in range(NUMBER_OF_IMAGES_DEV):
-        image_path = f"data/{NAME_OF_THE_DEV_SET}/{i:05d}.jpg"
+    for i in range(NUMBER_IMAGE_DEV):
+        image_path = config.dev_image_path(i)
         img = cv2.imread(image_path)
         image_descriptors = []
-        for function in wanted_descriptors:
-            descriptor = function(img, NAME_OF_THE_DEV_SET, i, visualize=False)
+        for function in WANTED_DESCRIPTORS_ONLINE:
+            descriptor = function(img, NAME_OF_DEV_SET, i, visualize=False)
             image_descriptors.append(descriptor)
         all_descriptors.append(image_descriptors)
         
@@ -110,7 +97,7 @@ def compute_distances(all_descriptors : list, precomputed_descriptors : list) ->
         for idx, descriptor in enumerate(objective_image):
             found_metrics = []
             objective_descriptors = precomputed_descriptors[idx]
-            for distance_function in wanted_distances:
+            for distance_function in WANTED_DISTANCES:
                 if isinstance(distance_function, tuple):
                     distance_function = distance_function[0]
                 distances = []
@@ -133,10 +120,10 @@ def write_results(all_metrics, ground_truth : list):
 
     log.info("Outputting results for each descriptor on results/[descriptor_name]_res.txt")
     
-    Path("results").mkdir(exist_ok=True)
+    config.RESULTS_DIR.mkdir(exist_ok=True)
     
-    result_files = [open(f"results/{name}_res.txt", "w") for name in descriptors_names]
-    
+    result_files = [(config.RESULTS_DIR / f"{name}_res.txt").open("w") for name in descriptors_names]
+
     for image_num, image_metrics in enumerate(all_metrics):
         for descriptor_type, metric in enumerate(image_metrics):
             
@@ -149,7 +136,7 @@ def write_results(all_metrics, ground_truth : list):
                 
                 objective_file.write(f"Top {K} images:\n")
                 distances = np.array(metric[distance_type])
-                if isinstance(wanted_distances[distance_type], tuple):
+                if isinstance(WANTED_DISTANCES[distance_type], tuple):
                     #We add a very little number to ensure non-zero divisions and stability for small numbers
                     distances = 1 / (distances + 1e-16)
                 top_k_res = np.argsort(distances)[:K]
@@ -186,7 +173,7 @@ def visualize_scores(scores : list):
                     ha="center", va="center", color="white", fontsize=8)
             
     plt.colorbar(cax)
-    plt.savefig("results/obtained_scores.png", dpi=300, bbox_inches="tight")
+    plt.savefig(config.RESULTS_DIR / "obtained_scores.png", dpi=300, bbox_inches="tight")
      
 def resume_results(all_metrics : list, ground_truth : list):
     """
@@ -203,7 +190,7 @@ def resume_results(all_metrics : list, ground_truth : list):
         for descriptor_type, metric in enumerate(image_metrics):
             for distance_type, distance_name in enumerate(distances_names):
                 distances = np.array(metric[distance_type])
-                if isinstance(wanted_distances[distance_type], tuple):
+                if isinstance(WANTED_DISTANCES[distance_type], tuple):
                     distances = 1 / (distances + 1e-16)
                 predictions = np.argsort(distances)[:K]
                 score = metrics.average_precision_k(ground_truth[image_num], predictions, K)
@@ -212,7 +199,7 @@ def resume_results(all_metrics : list, ground_truth : list):
     #We do the mean of the AP@k values
     for i in range(len(descriptor_scores)):
         for j in range(len(descriptor_scores[0])):
-            descriptor_scores[i][j] = descriptor_scores[i][j] / NUMBER_OF_IMAGES_DEV
+            descriptor_scores[i][j] = descriptor_scores[i][j] / NUMBER_IMAGE_DEV
     
     visualize_scores(descriptor_scores)
     
@@ -224,8 +211,7 @@ if __name__ == "__main__":
     setup_logging()
     log = logging.getLogger(__name__)
     
-    file_path = f"data/{NAME_OF_THE_DEV_SET}/gt_corresps.pkl"
-
+    file_path = config.DEV_DIR / "gt_corresps.pkl"
 
     with open(file_path, "rb") as f:
         ground_truth = pickle.load(f)
