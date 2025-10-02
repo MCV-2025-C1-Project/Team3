@@ -48,6 +48,8 @@ WANTED_DISTANCES = [
     metrics.l1_distance,
     (metrics.histogram_intersection, 1),
     (metrics.hellinger_kernel, 1),
+    metrics.earth_movers_distance,
+    metrics.canberra_distance,
 ]
 
 # Helpers

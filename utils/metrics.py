@@ -4,11 +4,12 @@ Collection of distance metrics for feature vectors
 
 import numpy as np
 from numpy.typing import NDArray
-    
+
+
 def euclidean_distance(x: NDArray, y: NDArray) -> float:
     """
     Compute the Euclidean distance (L2 distance) between two NumPy arrays
-    
+
     Parameters
     ----------
         x : np.ndarray
@@ -37,7 +38,6 @@ def l1_distance(x: NDArray, y: NDArray) -> float:
     ----------
         out : float
             The L1 distance between vectors x and y
-
     """
     return np.sum(np.abs(x - y))
 
@@ -71,7 +71,7 @@ def x2_dist(x: NDArray, y: NDArray) -> float:
 def histogram_intersection(hist1: NDArray, hist2: NDArray) -> float:
     """
     Compute the histogram intersection similarity
-    
+
     Parameters
     ----------
         hist1 : 1-D np.ndarray
@@ -91,7 +91,7 @@ def histogram_intersection(hist1: NDArray, hist2: NDArray) -> float:
 def hellinger_kernel(x: NDArray, y: NDArray) -> float:
     """
     Compute the Hellinger kernel similarity
-    
+
     Parameters
     ----------
         x : np.ndarray
@@ -111,7 +111,7 @@ def hellinger_kernel(x: NDArray, y: NDArray) -> float:
 def bhattacharyya_distance(x: NDArray, y: NDArray) -> float:
     """
     Compute the Bhattacharyya distance
-    
+
     Parameters
     ----------
         x : np.ndarray
@@ -124,16 +124,57 @@ def bhattacharyya_distance(x: NDArray, y: NDArray) -> float:
         out : float
             Bhattacharyya distance between the two given NumPy arrays
     """
-    
+
     return -np.log(np.sum(np.sqrt(x * y)) + 1e-10)
 
-def average_precision_k(ground_truth : list, predicted : list, k : int) -> float:
+
+def earth_movers_distance(x: NDArray, y: NDArray) -> float:
     """
-    Compute the average precision at K
-    
+    Compute the Earth Mover's Distance between two histograms.
+
     Parameters
     ----------
-        ground truth : list
+        x : 1-D np.ndarray
+            First histogram
+        y : 1-D np.ndarray
+            Second histogram
+
+    Returns
+    -------
+        out : float
+            Earth Mover's Distance between the two given histograms
+    """
+
+    return np.sum(np.abs(np.cumsum(x) - np.cumsum(y)))
+
+
+def canberra_distance(x: NDArray, y: NDArray) -> float:
+    """
+    Compute the Canberra distance between two vectors.
+
+    Parameters
+    ----------
+        x : 1-D np.ndarray
+        y : 1-D np.ndarray
+
+    Returns
+    -------
+        out : float
+            Canberra distance
+    """
+    numerator = np.abs(x - y)
+    denominator = np.abs(x) + np.abs(y)
+    non_zero = denominator != 0
+    return np.sum(numerator[non_zero] / denominator[non_zero])
+
+
+def average_precision_k(ground_truth: list, predicted: list, k: int) -> float:
+    """
+    Compute the average precision at K
+
+    Parameters
+    ----------
+        ground_truth : list
             A list of the ground truth items
         predicted : list
             A list of the predicted items
@@ -145,18 +186,18 @@ def average_precision_k(ground_truth : list, predicted : list, k : int) -> float
         out : float
             Average precision at k
     """
-    
     score = 0.0
     num_hits = 0.0
-    
+
     for i, p in enumerate(predicted[:k]):
         if p in ground_truth:
             num_hits += 1
             score += num_hits / (i + 1.0)
-            
+
     if num_hits > 0:
         return score / num_hits
-    return 0
+    return 0.0
+
 
 if __name__ == "__main__":
     vec1 = np.array([1.0, 2.0, 3.0, 4.0])
@@ -167,3 +208,5 @@ if __name__ == "__main__":
     print(f"Histogram intersection: {histogram_intersection(vec1, vec2)}")
     print(f"Hellinger kernel: {hellinger_kernel(vec1, vec2)}")
     print(f"Bhattacharyya distance: {bhattacharyya_distance(vec1, vec2)}")
+    print(f"Earth Mover's Distance: {earth_movers_distance(vec1, vec2)}")
+    print(f"Canberra distance: {canberra_distance(vec1, vec2)}")
