@@ -27,12 +27,18 @@ WANTED_DESCRIPTORS_OFFLINE = [
     descriptors.gray_descriptor,
     descriptors.rgb_descriptor,
     descriptors.hsv_descriptor,
+    descriptors.lab_descriptor,
+    descriptors.ycbcr_descriptor,
+    descriptors.mix_of_all_descriptor,
 ]
 
 WANTED_DESCRIPTORS_ONLINE = [
     descriptors.gray_descriptor,
     descriptors.rgb_descriptor,
     descriptors.hsv_descriptor,
+    descriptors.lab_descriptor,
+    descriptors.ycbcr_descriptor,
+    descriptors.mix_of_all_descriptor,
 ]
 
 WANTED_DISTANCES = [
