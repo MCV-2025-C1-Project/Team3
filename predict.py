@@ -39,15 +39,15 @@ def load_precomputed_descriptors() -> list:
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="Computes the most similar museum painting to the images on the given folder")
+    parser = argparse.ArgumentParser(description="Computes the most similar museum painting to the images on the given folder",
+                                     formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument("folder", help="Folder where the images to predict are located")
     parser.add_argument("-k", type=int, default=5, help="The number of outputs to compute AP@K")
     # The methods are defined on the color descriptors config
-    parser.add_argument("--method", type=int, default=1, choices=[1, 2], help="Method to use:\n"
-                                                    "1 - HSV histograms with Canberra distance"
-                                                    "2 - LAB with hellinger kernel"
-                                                    "(default = 1)"
+    parser.add_argument("--method", type=int, default=1, choices=[1, 2], help="Method to use (default = 1):\n"
+                                                    "   1 - HSV histograms with Canberra distance\n"
+                                                    "   2 - LAB with hellinger kernel\n"
                                                     )
     
 
