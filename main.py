@@ -1,4 +1,5 @@
 
+from config.color_descriptors_config import WANTED_COLOR_DESCRIPTORS_NAMES, WANTED_COLOR_DESCRIPTORS
 from utils import metrics
 import cv2
 import logging
@@ -16,7 +17,6 @@ logging.getLogger("matplotlib").setLevel(logging.WARNING)
 ALL_DESCRIPTORS = []
 
 if "COLOR_DESCRIPTORS" in general_config.DESCRIPTORS:
-    from config.color_descriptors_config import WANTED_COLOR_DESCRIPTORS
     ALL_DESCRIPTORS.extend(WANTED_COLOR_DESCRIPTORS)
 
 # EXTEND IN THE FUTURE
@@ -177,53 +177,57 @@ def write_results(all_metrics, ground_truth : list):
             
             objective_file.write(f"|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||\n")
  
-def visualize_scores(scores : list):
+def visualize_scores(scores : list, suffix : str = ""):
     
     fig, ax = plt.subplots()
+    ax.set_title(f"Scores obtained with {suffix}", fontsize=12, fontweight='bold')
     cax = ax.matshow(scores, cmap="viridis")
-    
-    ax.set_xticks(range(len(distances_names)))
-    ax.set_yticks(range(len(descriptors_names)))
+    plot_descriptors_names = WANTED_COLOR_DESCRIPTORS_NAMES
+    ax.set_xticks(range(len(plot_descriptors_names)))
+    ax.set_yticks(range(len(plot_descriptors_names)))
     ax.set_xticklabels(distances_names, rotation=90)
-    ax.set_yticklabels(descriptors_names)
+    ax.set_yticklabels(plot_descriptors_names)
     
-    for i in range(len(descriptors_names)):
+    for i in range(len(plot_descriptors_names)):
         for j in range(len(distances_names)):
             ax.text(j, i, f"{scores[i][j]:.3f}",
                     ha="center", va="center", color="white", fontsize=8)
             
     plt.colorbar(cax)
-    plt.savefig(io_config.RESULTS_DIR / "obtained_scores.png", dpi=300, bbox_inches="tight")
+    plt.savefig(io_config.RESULTS_DIR / f"obtained_scores{suffix}.png", dpi=300, bbox_inches="tight")
      
-def resume_results(all_metrics : list, ground_truth : list):
+def resume_results(all_metrics: list, ground_truth: list, eval_ks: list = [io_config.MIN_K , K]):
     """
     Creates a heatmap with distances and descriptors with the AP@K to have a visual approach
+    for multiple values of K.
     """
 
     log.info("Rendering visual results")
     Path("results").mkdir(exist_ok=True)
-    
-    #A matrix where a_ij is the sum of the scores gotten using descriptor i
-    # and distance metric j
-    descriptor_scores = [[0 for _ in range(len(distances_names))] for _ in range(len(descriptors_names))]
-    for image_num , image_metrics in enumerate(all_metrics):
-        for descriptor_type, metric in enumerate(image_metrics):
-            for distance_type, distance_name in enumerate(distances_names):
-                distances = np.array(metric[distance_type])
-                if isinstance(WANTED_DISTANCES[distance_type], tuple):
-                    distances = 1 / (distances + 1e-16)
-                predictions = np.argsort(distances)[:K]
-                score = metrics.average_precision_k(ground_truth[image_num], predictions, K)
-                descriptor_scores[descriptor_type][distance_type] += score
 
-    #We do the mean of the AP@k values
-    for i in range(len(descriptor_scores)):
-        for j in range(len(descriptor_scores[0])):
-            descriptor_scores[i][j] = descriptor_scores[i][j] / NUMBER_IMAGE_DEV
-    
-    visualize_scores(descriptor_scores)
-    
-    log.info("Rendered")
+    for eval_k in eval_ks:
+        # A matrix where a_ij is the sum of the scores gotten using descriptor i
+        # and distance metric j
+        descriptor_scores = [[0 for _ in range(len(distances_names))] for _ in range(len(descriptors_names))]
+
+        for image_num, image_metrics in enumerate(all_metrics):
+            for descriptor_type, metric in enumerate(image_metrics):
+                for distance_type, distance_name in enumerate(distances_names):
+                    distances = np.array(metric[distance_type])
+                    if isinstance(WANTED_DISTANCES[distance_type], tuple):
+                        distances = 1 / (distances + 1e-16)
+
+                    predictions = np.argsort(distances)[:eval_k]
+                    score = metrics.average_precision_k(ground_truth[image_num], predictions, eval_k)
+                    descriptor_scores[descriptor_type][distance_type] += score
+
+        for i in range(len(descriptor_scores)):
+            for j in range(len(descriptor_scores[0])):
+                descriptor_scores[i][j] /= NUMBER_IMAGE_DEV
+
+        visualize_scores(descriptor_scores, suffix=f"_k{eval_k}")
+        log.info(f"Rendered results for K={eval_k}")
+
             
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ from pathlib import Path
 
 # Base directory
 # Go 2 levels up to reach Team3 root
-BASE_DIR = Path(__file__).resolve().parents[2]
+BASE_DIR = Path(__file__).resolve().parents[1]
 
 
 
@@ -21,6 +21,7 @@ COLOR_DESC_DIR  = DESCRIPTORS_DIR / "color_descriptors"
 HIST_DIR        = RESULTS_DIR / "histograms"
 STORE_HISTOGRAMS = False
 TOP_K = 5
+MIN_K = 1
 
 # Helpers
 def ensure_dirs() -> None:
