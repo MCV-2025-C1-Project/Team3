@@ -111,7 +111,7 @@ def generic_color_descriptor(color_space: str,
         Function that computes the concatenated histogram of the image.
     """
 
-    def descriptor_fn(img: NDArray, name_of_the_set: str, image_number: int, visualize: bool = False) -> NDArray:
+    def descriptor_fn(img: NDArray, name_of_the_set: str = "", image_number: int = 0, visualize: bool = False) -> NDArray:
         if color_space == "rgb":
             converted = img
         elif color_space == "gray":

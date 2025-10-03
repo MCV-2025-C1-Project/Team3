@@ -1,4 +1,5 @@
 from descriptors.color_descriptors import color_descriptors_func as descriptors
+from utils import metrics
 
 COLOR_DESCRIPTORS_CONFIGS = [
     {"color_space": "gray",
@@ -58,3 +59,7 @@ MIXED_COLOR_SUM_DESCRIPTOR = descriptors.mixed_sum_descriptor(MIXED_SUM_CONFIGS)
 # Final list
 WANTED_COLOR_DESCRIPTORS = INDIVIDUAL_COLOR_DESCRIPTORS + [MIXED_COLOR_CONCAT_DESCRIPTOR] + [MIXED_COLOR_SUM_DESCRIPTOR]
 WANTED_COLOR_DESCRIPTORS_NAMES = [f["color_space"] for f in COLOR_DESCRIPTORS_CONFIGS] + ["Mixed_Concat", "Mixed_Sum"]
+
+# Predicting list
+PREDICTING_COLOR_DESCRIPTORS = [(INDIVIDUAL_COLOR_DESCRIPTORS[2], metrics.canberra_distance),
+                                (INDIVIDUAL_COLOR_DESCRIPTORS[3], metrics.hellinger_kernel)]
