@@ -185,7 +185,7 @@ def visualize_scores(scores : list, suffix : str = ""):
     plot_descriptors_names = WANTED_COLOR_DESCRIPTORS_NAMES
     ax.set_xticks(range(len(plot_descriptors_names)))
     ax.set_yticks(range(len(plot_descriptors_names)))
-    ax.set_xticklabels(distances_names, rotation=90)
+    ax.set_xticklabels([name.replace("_", " ") for name in distances_names], rotation=90)
     ax.set_yticklabels(plot_descriptors_names)
     
     for i in range(len(plot_descriptors_names)):
