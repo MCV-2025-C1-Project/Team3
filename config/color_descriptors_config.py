@@ -32,6 +32,11 @@ COLOR_DESCRIPTORS_CONFIGS = [
      "bins": [180,256],
      "ranges": [(0,180),(0,256)],
      "weights": [1.0,1.0]},
+    {"color_space": "hsv",
+     "channels": ["H","S","V"],
+     "bins": [180,100,32],
+     "ranges": [(0,180),(0,256),(0,256)],
+     "weights": [1.0,1.0,1.0]},
 ]
 
 # Build individual descriptors directly
@@ -58,7 +63,9 @@ MIXED_COLOR_SUM_DESCRIPTOR = descriptors.mixed_sum_descriptor(MIXED_SUM_CONFIGS)
 
 # Final list
 WANTED_COLOR_DESCRIPTORS = INDIVIDUAL_COLOR_DESCRIPTORS + [MIXED_COLOR_CONCAT_DESCRIPTOR] + [MIXED_COLOR_SUM_DESCRIPTOR]
-WANTED_COLOR_DESCRIPTORS_NAMES = [f["color_space"] for f in COLOR_DESCRIPTORS_CONFIGS] + ["Mixed_Concat", "Mixed_Sum"]
+
+
+WANTED_COLOR_DESCRIPTORS_NAMES = [f"{f["color_space"]}_{f['bins']}" for f in COLOR_DESCRIPTORS_CONFIGS] + ["Mixed_Concat", "Mixed_Sum"]
 
 # Predicting list
 PREDICTING_COLOR_DESCRIPTORS = [(INDIVIDUAL_COLOR_DESCRIPTORS[2], metrics.canberra_distance),
