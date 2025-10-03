@@ -1,4 +1,5 @@
-from utils import metrics, config
+
+from utils import metrics
 import cv2
 import logging
 import logging.config
@@ -6,22 +7,41 @@ import pickle
 import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
+from utils.config import general_config,io_config
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
-NUMBER_IMAGE_DEV = config.count_jpgs(config.DEV_DIR)
-NAME_OF_DEV_SET = config.DEV_NAME
-WANTED_DESCRIPTORS_ONLINE = config.WANTED_DESCRIPTORS_ONLINE
-WANTED_DISTANCES = config.WANTED_DISTANCES
-#The amout of results showed (top k)
-K = config.TOP_K
 
-descriptors_names = [f.__name__ for f in  WANTED_DESCRIPTORS_ONLINE]
-distances_names   = [(f[0].__name__ if isinstance(f, tuple) else f.__name__)for f in  WANTED_DISTANCES]
+ALL_DESCRIPTORS = []
 
-#The precomputed files for the BBDD images must exist
-files = [(config.DESCRIPTORS_TYPE_DIR / f"{name}.txt").open("r") for name in descriptors_names]
+if "COLOR_DESCRIPTORS" in general_config.DESCRIPTORS:
+    from utils.config.color_descriptors_config import WANTED_COLOR_DESCRIPTORS
+    ALL_DESCRIPTORS.extend(WANTED_COLOR_DESCRIPTORS)
+
+# EXTEND IN THE FUTURE
+
+WANTED_DESCRIPTORS = ALL_DESCRIPTORS
+WANTED_DISTANCES = general_config.WANTED_DISTANCES
+
+# Metadata from io_config
+NUMBER_IMAGE_DEV = io_config.count_jpgs(io_config.DEV_DIR)
+NAME_OF_DEV_SET = io_config.DEV_NAME
+K = io_config.TOP_K
+
+# Names for logging and saving
+descriptors_names = [f.__name__ for f in WANTED_DESCRIPTORS]
+distances_names = [
+    d[0].__name__ if isinstance(d, tuple) else d.__name__
+    for d in WANTED_DISTANCES
+]
+
+files = []
+for name in descriptors_names:
+    if "COLOR_DESCRIPTORS" in general_config.DESCRIPTORS:
+        files.append((io_config.COLOR_DESC_DIR / f"{name}.txt").open("r"))
+
+
 
 
 
@@ -47,10 +67,10 @@ def compute_development_descriptors() -> list:
     
     #For each image in the development folder, computes the specified descriptors
     for i in range(NUMBER_IMAGE_DEV):
-        image_path = config.dev_image_path(i)
+        image_path = io_config.dev_image_path(i)
         img = cv2.imread(image_path)
         image_descriptors = []
-        for function in WANTED_DESCRIPTORS_ONLINE:
+        for function in WANTED_DESCRIPTORS:
             descriptor = function(img, NAME_OF_DEV_SET, i, visualize=False)
             image_descriptors.append(descriptor)
         all_descriptors.append(image_descriptors)
@@ -120,9 +140,9 @@ def write_results(all_metrics, ground_truth : list):
 
     log.info("Outputting results for each descriptor on results/[descriptor_name]_res.txt")
     
-    config.RESULTS_DIR.mkdir(exist_ok=True)
+    io_config.RESULTS_DIR.mkdir(exist_ok=True)
     
-    result_files = [(config.RESULTS_DIR / f"{name}_res.txt").open("w") for name in descriptors_names]
+    result_files = [(io_config.RESULTS_DIR / f"{name}_res.txt").open("w") for name in descriptors_names]
 
     for image_num, image_metrics in enumerate(all_metrics):
         for descriptor_type, metric in enumerate(image_metrics):
@@ -173,7 +193,7 @@ def visualize_scores(scores : list):
                     ha="center", va="center", color="white", fontsize=8)
             
     plt.colorbar(cax)
-    plt.savefig(config.RESULTS_DIR / "obtained_scores.png", dpi=300, bbox_inches="tight")
+    plt.savefig(io_config.RESULTS_DIR / "obtained_scores.png", dpi=300, bbox_inches="tight")
      
 def resume_results(all_metrics : list, ground_truth : list):
     """
@@ -211,7 +231,7 @@ if __name__ == "__main__":
     setup_logging()
     log = logging.getLogger(__name__)
     
-    file_path = config.DEV_DIR / "gt_corresps.pkl"
+    file_path = io_config.DEV_DIR / "gt_corresps.pkl"
 
     with open(file_path, "rb") as f:
         ground_truth = pickle.load(f)

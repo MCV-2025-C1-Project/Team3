@@ -3,10 +3,13 @@ Collection of descriptors of an image
 """
 
 import numpy as np
+from utils.config import io_config
 import cv2
 from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 from pathlib import Path
+
+
 
 def visualize_histogram(hist: NDArray[np.float32], name_of_the_set: str, histogram_name: str, image_number: int, channel_labels: list[str] = None,channel_sizes: list[int] = None) -> None:
     """
@@ -51,9 +54,12 @@ def visualize_histogram(hist: NDArray[np.float32], name_of_the_set: str, histogr
 
         plt.xticks(positions, labels, rotation=45)
 
-    Path(f"results/histograms/{name_of_the_set}/{histogram_name}").mkdir(parents=True, exist_ok=True)
-    plt.savefig(f"results/histograms/{name_of_the_set}/{histogram_name}/{image_number:05d}.png",
-                dpi=300, bbox_inches="tight")
+    output_dir = io_config.HIST_DIR / name_of_the_set / histogram_name
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    output_file = output_dir / f"{image_number:05d}.png"
+    plt.savefig(output_file, dpi=300, bbox_inches="tight")
+
     plt.close()
 
 def compute_histogram(img: NDArray[np.uint8], bins: int = 256, value_range: tuple[int,int] = (0,256)) -> NDArray[np.float32]:
@@ -79,196 +85,137 @@ def compute_histogram(img: NDArray[np.uint8], bins: int = 256, value_range: tupl
     hist /= (hist.sum() + 1e-7)
     return hist
 
-def rgb_descriptor(img : NDArray, name_of_the_set: str, image_number: int, visualize: bool = False) -> NDArray:
+def generic_color_descriptor(color_space: str,
+                       channels: list[str],
+                       bins: list[int],
+                       ranges: list[tuple[int, int]],
+                       weights: list[float]):
     """
-    Computes the concatenation of the BGR histograms
-    
-    Parameters
-    ----------
-        - img : NDArray
-            An RGB image
-        - name_of_the_set : str
-            Name of the set of the image
-        - image_number : int
-            Number of the image
-        - visualize : bool, optional (default=False)
-            If True, plots and saves the histogram 
-    Returns
-    -------
-        - rgb_hist : NDArray
-            Concatenated RGB histogram of the image
-    """
-
-    b,g,r = cv2.split(img)
-
-    b_hist = compute_histogram(b, bins=256, value_range=(0,256))
-    g_hist = compute_histogram(g,bins=256, value_range=(0,256))
-    r_hist = compute_histogram(r,bins=256, value_range=(0,256))
-    
-    bgr_hist = np.concat([b_hist, g_hist, r_hist])
-
-    if visualize:
-        visualize_histogram(bgr_hist, name_of_the_set, "rgb_histogram", image_number,channel_labels=["B", "G", "R"],channel_sizes=[256,256,256])
-    return bgr_hist
-
-def gray_descriptor(img : NDArray, name_of_the_set: str, image_number: int, visualize: bool = False) -> NDArray:
-    """
-    Computes the gray level histogram of an image
-    
-    Parameters
-    ----------
-        - img : NDArray
-            An RGB image
-        - name_of_the_set : str
-            Name of the set of the image
-        - image_number : int
-            Number of the image
-        - visualize : bool, optional (default=False)
-            If True, plots and saves the histogram
-    Returns
-    -------
-        - gray_hist : NDArray
-            Gray level histogram the image
-    """
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    gray_hist = compute_histogram(img, bins=256, value_range=(0,256))
-
-    if visualize:
-        visualize_histogram(gray_hist,  name_of_the_set,"gray_histogram",image_number,channel_labels=["Gray"],channel_sizes=[256])
-    return gray_hist
-
-def hsv_descriptor(img : NDArray, name_of_the_set: str, image_number: int, visualize: bool = False) -> NDArray:
-    """
-    Computes the concatenation of the HSV histogram
-    
-    Parameters
-    ----------
-        - img : NDArray
-            An RGB image
-        - visualize : bool, optional (default=False)
-            If True, plots and saves the histogram
-        - name_of_the_set : str
-            Name of the set of the image
-        - image_number : int
-            Number of the image
-    Returns
-    -------
-        - hsv_hist : array-like
-            HSV histogram of the image
-    """
-    hsv_image = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    h,s,v = cv2.split(hsv_image)
-
-    h_hist = compute_histogram(h, bins=180, value_range=(0,180))
-    s_hist = compute_histogram(s,bins=256, value_range=(0,256))
-    v_hist = compute_histogram(v,bins=256, value_range=(0,256))
-    hsv_hist = np.concat([h_hist, s_hist, v_hist])
-
-    if visualize:
-        visualize_histogram(hsv_hist, name_of_the_set, "hsv_histogram", image_number,channel_labels=["H", "S", "V"],channel_sizes=[180,256,256])
-    return hsv_hist
-
-
-def lab_descriptor(img: NDArray, name_of_the_set: str, image_number: int, visualize: bool = False) -> NDArray:
-    """
-    Computes the concatenation of the CIELAB histogram
-    
-    Parameters
-    ----------
-        img : NDArray
-            A BGR image
-        visualize : bool, optional (default=False)
-            If True, plots and saves the histogram
-        name_of_the_set : str
-            Name of the set of the image
-        image_number : int
-            Number of the image
-    Returns
-    -------
-        hist : array-like
-            Lab histogram of the image
-    """
-    
-    lab_image = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
-    l, a, b = cv2.split(lab_image)
-
-    l_hist = compute_histogram(l,bins=256, value_range=(0,256))
-    a_hist = compute_histogram(a,bins=256, value_range=(0,256))
-    b_hist = compute_histogram(b,bins=256, value_range=(0,256))
-
-    lab_hist = np.concatenate([l_hist, a_hist, b_hist])
-
-    if visualize:
-        visualize_histogram(lab_hist, name_of_the_set, "lab_histogram", image_number, channel_labels=["L", "A", "B"],channel_sizes=[256,256,256])
-
-    return lab_hist
-
-
-def ycbcr_descriptor(img: NDArray, name_of_the_set: str, image_number: int, visualize: bool = False) -> NDArray:
-    """
-    Computes the concatenation of the Y, Cb, Cr histograms from an image.
+    Factory function that creates a descriptor function from a given configuration.
 
     Parameters
     ----------
-    img : NDArray
-        Input BGR image
-    name_of_the_set : str
-        Name of the dataset the image belongs to
-    image_number : int
-        Index/ID of the image
-    visualize : bool, optional (default=False)
-        If True, plots and saves the histogram
+    color_space : str
+        Color space (e.g., "rgb", "hsv", "lab", "ycbcr", "gray").
+    channels : list[str]
+        Channel names to use.
+    bins : list[int]
+        Number of bins per channel.
+    ranges : list[tuple[int,int]]
+        Value ranges for each channel.
+    weights : list[float]
+        Weights to apply to each channel.
 
     Returns
     -------
-    hist : NDArray
-        Concatenated YCbCr histogram of the image
+    descriptor_fn : function
+        Function that computes the concatenated histogram of the image.
     """
-    ycrcb_image = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
-    y, cr, cb = cv2.split(ycrcb_image)
 
-    y_hist  = compute_histogram(y,bins=256, value_range=(0,256))
-    cb_hist = compute_histogram(cb,bins=256, value_range=(0,256))
-    cr_hist = compute_histogram(cr,bins=256, value_range=(0,256))
+    def descriptor_fn(img: NDArray, name_of_the_set: str, image_number: int, visualize: bool = False) -> NDArray:
+        if color_space == "rgb":
+            converted = img
+        elif color_space == "gray":
+            converted = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        elif color_space == "hsv":
+            converted = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        elif color_space == "lab":
+            converted = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
+        elif color_space == "ycbcr":
+            converted = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
+        else:
+            raise ValueError(f"Unsupported color space: {color_space}")
 
-    ycbcr_hist = np.concatenate([y_hist, cb_hist, cr_hist])
+        if color_space == "gray":
+            channel_imgs = [converted]
+        else:
+            channel_imgs = cv2.split(converted)
 
-    if visualize:
-        visualize_histogram(ycbcr_hist, name_of_the_set, "ycbcr_histogram", image_number, channel_labels=["Y", "Cb", "Cr"],channel_sizes=[256,256,256])
+        # Select only the configured channels
+        selected_imgs = []
+        for ch in channels:
+            if ch in ["B", "G", "R"]:
+                selected_imgs.append(channel_imgs[["B","G","R"].index(ch)])
+            elif ch in ["H", "S", "V"]:
+                selected_imgs.append(channel_imgs[["H","S","V"].index(ch)])
+            elif ch in ["L", "A", "B"]:
+                selected_imgs.append(channel_imgs[["L","A","B"].index(ch)])
+            elif ch in ["Y", "Cr", "Cb"]:
+                selected_imgs.append(channel_imgs[["Y","Cr","Cb"].index(ch)])
+            elif ch == "Gray":
+                selected_imgs.append(channel_imgs[0])
+            else:
+                raise ValueError(f"Unknown channel {ch} for {color_space}")
 
-    return ycbcr_hist
+        hists = []
+        for img_ch, b, r, w in zip(selected_imgs, bins, ranges, weights):
+            hist = compute_histogram(img_ch, bins=b, value_range=r)
+            hists.append(hist * w)
+
+        final_hist = np.concatenate(hists)
+
+        if visualize:
+            visualize_histogram(
+                final_hist,
+                name_of_the_set,
+                descriptor_fn.__name__,
+                image_number,
+                channel_labels=channels,
+                channel_sizes=bins
+            )
 
 
-def mix_of_all_descriptor(img: NDArray, name_of_the_set: str, image_number: int, visualize: bool = False) -> NDArray:
+        return final_hist
+
+    descriptor_fn.__name__ = (
+    f"{color_space}_{'_'.join(channels)}"
+    f"_bins{'-'.join(map(str,bins))}"
+    f"_w{'-'.join(map(str,weights))}"
+    )
+    return descriptor_fn
+
+
+def mixed_descriptor(configs: list[dict]):
     """
-    Computes the concatenation of the Grayscale, BGR, HSV, CIELAB, and YCbCr histograms from an image.
+    Creates a mixed descriptor from multiple color spaces (like concatenate rgb.hsv....).
 
     Parameters
     ----------
-    img : NDArray
-        Input BGR image
-    name_of_the_set : str
-        Name of the dataset the image belongs to
-    image_number : int
-        Index/ID of the image
-    visualize : bool, optional (default=False)
-        If True, plots and saves the histogram
+    configs : list[dict]
+        Each dict must contain {color_space, channels, bins, ranges, weights}.
 
     Returns
     -------
-    hist : NDArray
-        Concatenated 1-D histogram of the color spaces mentioned above for the input image
+    descriptor_fn : function
+        Descriptor that concatenates histograms from all provided configs.
     """
 
-    bgr_hist = rgb_descriptor(img, name_of_the_set, image_number, visualize=False)
-    gray_hist = gray_descriptor(img, name_of_the_set, image_number, visualize=False)
-    hsv_hist = hsv_descriptor(img, name_of_the_set, image_number, visualize=False)
-    lab_hist = lab_descriptor(img, name_of_the_set, image_number, visualize=False)
-    ycbcr_hist = ycbcr_descriptor(img, name_of_the_set, image_number, visualize=False)
+    def descriptor_fn(img: NDArray, name_of_the_set: str, image_number: int, visualize: bool = False) -> NDArray:
+        hists = []
+        for cfg in configs:
+            fn = generic_color_descriptor(**cfg)
+            h = fn(img, name_of_the_set, image_number, visualize=False)
+            hists.append(h)
+        final_hist = np.concatenate(hists)
 
-    mix_of_all_hist = np.concatenate([bgr_hist, gray_hist, hsv_hist, lab_hist, ycbcr_hist])
+        if visualize:
+            visualize_histogram(
+                final_hist,
+                name_of_the_set,
+                descriptor_fn.__name__,
+                image_number
+            )
 
-    if visualize:
-        visualize_histogram(mix_of_all_hist, name_of_the_set, "mix_of_all_histogram", image_number, channel_labels=["BGR", "Gray", "HSV", "CIELAB", "YCbCr"],channel_sizes=[768,256,692,768,768])
+        return final_hist
 
-    return mix_of_all_hist
+    parts = []
+    for cfg in configs:
+        part = (
+            f"{cfg['color_space']}_{'_'.join(cfg['channels'])}"
+            f"_bins{'-'.join(map(str,cfg['bins']))}"
+            f"_w{'-'.join(map(str,cfg['weights']))}"
+        )
+        parts.append(part)
+
+    descriptor_fn.__name__ = "MIXED_" + "__".join(parts)
+    return descriptor_fn

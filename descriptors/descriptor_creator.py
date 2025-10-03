@@ -10,27 +10,41 @@ Run from Team3 with:
 
 import cv2
 import numpy as np
-from utils import config
-from descriptors.color_descriptors import color_descriptors_func as color_descriptors
+from utils.config import io_config, general_config
+
+ALL_BLOCKS = {}
+
+if "COLOR_DESCRIPTORS" in general_config.DESCRIPTORS:
+    from utils.config.color_descriptors_config import WANTED_COLOR_DESCRIPTORS
+    ALL_BLOCKS["COLOR_DESCRIPTORS"] = {
+        "descriptors": WANTED_COLOR_DESCRIPTORS,
+        "dir": io_config.DESCRIPTORS_DIR / "color_descriptors"
+    }
+
+# ADD MORE IN THE FUTURE: THE LIST IN GENERAL CONFIG WILL DEFINE THE DESCRIPTORS WE WANT TO CREATE
 
 # Set up
-config.ensure_dirs()
+io_config.ensure_dirs()
 
-# Process each image
-names = [f.__name__ for f in config.WANTED_DESCRIPTORS_OFFLINE]
-files = [(config.COLOR_DESC_DIR / f"{name}.txt").open("w") for name in names]
+for block, data in ALL_BLOCKS.items():
+    data["dir"].mkdir(parents=True, exist_ok=True)
+    names = [f.__name__ for f in data["descriptors"]]
+    data["files"] = [(data["dir"] / f"{name}.txt").open("w") for name in names]
 
 
-for i in range(config.count_jpgs(config.DB_DIR)):
-    image_path = config.db_image_path(i)
+for i in range(io_config.count_jpgs(io_config.DB_DIR)):
+    image_path = io_config.db_image_path(i)
     img = cv2.imread(image_path)
-    for idx, function in enumerate(config.WANTED_DESCRIPTORS_OFFLINE):
-        descriptor = function(img, config.DB_NAME,i,visualize=config.STORE_HISTOGRAMS)
-        np.savetxt(files[idx], descriptor[None])
-        print(i)
-                
-for file in files:
-    file.close()
+
+    for block, data in ALL_BLOCKS.items():
+        for idx, function in enumerate(data["descriptors"]):
+            descriptor = function(img, io_config.DB_NAME, i, visualize=io_config.STORE_HISTOGRAMS)
+            np.savetxt(data["files"][idx], descriptor[None])
+    print(i)
+
+for block, data in ALL_BLOCKS.items():
+    for f in data["files"]:
+        f.close()
                 
 
 
