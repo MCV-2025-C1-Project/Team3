@@ -3,12 +3,11 @@ Collection of descriptors of an image
 """
 
 import numpy as np
-from utils.config import io_config
+from config import io_config
 import cv2
 from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 from pathlib import Path
-
 
 
 def visualize_histogram(hist: NDArray[np.float32], name_of_the_set: str, histogram_name: str, image_number: int, channel_labels: list[str] = None,channel_sizes: list[int] = None) -> None:
@@ -174,8 +173,7 @@ def generic_color_descriptor(color_space: str,
     )
     return descriptor_fn
 
-
-def mixed_descriptor(configs: list[dict]):
+def mixed_concat_descriptor(configs: list[dict]):
     """
     Creates a mixed descriptor from multiple color spaces (like concatenate rgb.hsv....).
 
@@ -218,4 +216,49 @@ def mixed_descriptor(configs: list[dict]):
         parts.append(part)
 
     descriptor_fn.__name__ = "MIXED_" + "__".join(parts)
+    return descriptor_fn
+
+def mixed_sum_descriptor(configs: list[tuple]):
+    """
+    Creates a mixed descriptor from multiple color spaces (like concatenate rgb.hsv....).
+
+    Parameters
+    ----------
+    configs : list[tuple]
+        Each tuple must contain a dict with {color_space, channels, bins, ranges, weights}
+        and an int that sets its weight. All the dicts must have the same number of bins.
+
+    Returns
+    -------
+    descriptor_fn : function
+        Descriptor that concatenates histograms from all provided configs.
+    """
+
+    def descriptor_fn(img: NDArray, name_of_the_set: str, image_number: int, visualize: bool = False) -> NDArray:
+        hist = np.array([0] * (configs[0][0]['bins'][0] * len(configs[0][0]['bins'])), dtype=np.float32)
+        for cfg in configs:
+            fn = generic_color_descriptor(**(cfg[0]))
+            h = fn(img, name_of_the_set, image_number, visualize=False)
+            hist = np.add(hist, h*cfg[1])
+        final_hist = hist
+
+        if visualize:
+            visualize_histogram(
+                final_hist,
+                name_of_the_set,
+                descriptor_fn.__name__,
+                image_number
+            )
+
+        return final_hist
+
+    parts = []
+    for cfg in configs:
+        part = (
+            f"{cfg[0]['color_space']}_{'_'.join(cfg[0]['channels'])}"
+            f"_w-{cfg[1]}"
+        )
+        parts.append(part)
+
+    descriptor_fn.__name__ = "MIXED_SUM" + "__".join(parts)
     return descriptor_fn

@@ -10,12 +10,12 @@ Run from Team3 with:
 
 import cv2
 import numpy as np
-from utils.config import io_config, general_config
+from config import io_config, general_config
 
 ALL_BLOCKS = {}
 
 if "COLOR_DESCRIPTORS" in general_config.DESCRIPTORS:
-    from utils.config.color_descriptors_config import WANTED_COLOR_DESCRIPTORS
+    from config.color_descriptors_config import WANTED_COLOR_DESCRIPTORS
     ALL_BLOCKS["COLOR_DESCRIPTORS"] = {
         "descriptors": WANTED_COLOR_DESCRIPTORS,
         "dir": io_config.DESCRIPTORS_DIR / "color_descriptors"
@@ -26,12 +26,13 @@ if "COLOR_DESCRIPTORS" in general_config.DESCRIPTORS:
 # Set up
 io_config.ensure_dirs()
 
+#Create the directories and paths used to store the descriptors
 for block, data in ALL_BLOCKS.items():
     data["dir"].mkdir(parents=True, exist_ok=True)
     names = [f.__name__ for f in data["descriptors"]]
     data["files"] = [(data["dir"] / f"{name}.txt").open("w") for name in names]
 
-
+#Precompute the descriptors and save them on the predefined file
 for i in range(io_config.count_jpgs(io_config.DB_DIR)):
     image_path = io_config.db_image_path(i)
     img = cv2.imread(image_path)

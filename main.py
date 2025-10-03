@@ -7,7 +7,7 @@ import pickle
 import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
-from utils.config import general_config,io_config
+from config import general_config,io_config
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
@@ -16,7 +16,7 @@ logging.getLogger("matplotlib").setLevel(logging.WARNING)
 ALL_DESCRIPTORS = []
 
 if "COLOR_DESCRIPTORS" in general_config.DESCRIPTORS:
-    from utils.config.color_descriptors_config import WANTED_COLOR_DESCRIPTORS
+    from config.color_descriptors_config import WANTED_COLOR_DESCRIPTORS
     ALL_DESCRIPTORS.extend(WANTED_COLOR_DESCRIPTORS)
 
 # EXTEND IN THE FUTURE
