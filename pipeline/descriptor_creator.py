@@ -15,10 +15,10 @@ def precompute_descriptors():
     ALL_BLOCKS = {}
 
     if "COLOR_DESCRIPTORS" in general_config.DESCRIPTORS:
-        from config.color_descriptors_config import WANTED_COLOR_DESCRIPTORS
+        from config.color_descriptors_config import PRECOMPUTED_COLOR_DESCRIPTORS
         ALL_BLOCKS["COLOR_DESCRIPTORS"] = {
-            "descriptors": WANTED_COLOR_DESCRIPTORS,
-            "dir": io_config.DESCRIPTORS_DIR / "color_descriptors"
+            "descriptors": PRECOMPUTED_COLOR_DESCRIPTORS,
+            "dir": io_config.COLOR_DESC_DIR
         }
 
     # ADD MORE TYPES IN FUTURE

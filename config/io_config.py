@@ -19,10 +19,11 @@ TEST_DIR = DATA_DIR / TEST_NAME
 # Outputs
 RESULTS_DIR = BASE_DIR / "results"
 DESCRIPTORS_DIR = BASE_DIR / "descriptors"
-COLOR_DESC_DIR  = DESCRIPTORS_DIR / "color_descriptors"
+COLOR_DESC_DIR  = DESCRIPTORS_DIR / "color_descriptors/stored_color_descriptors"
 
 HIST_DIR        = RESULTS_DIR / "histograms"
 STORE_HISTOGRAMS = False
+STORE_RESULTS_TXT_BY_DESCRIPTOR = False
 
 # Helpers
 def ensure_dirs() -> None:

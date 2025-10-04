@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 from utils import metrics
 from config import io_config, general_config
-from config.color_descriptors_config import WANTED_COLOR_DESCRIPTORS, WANTED_COLOR_DESCRIPTORS_NAMES
+from config.color_descriptors_config import DEV_COLOR_DESCRIPTORS, DEV_COLOR_DESCRIPTOR_NAMES
 from utils.common import load_precomputed_descriptors
 
 
@@ -43,29 +43,30 @@ def compute_distances(all_descriptors, precomputed_descriptors, WANTED_DISTANCES
     return all_metrics
 
 
-def write_results(all_metrics, ground_truth, descriptors_names, distances_names, K=5):
+def write_results(all_metrics, ground_truth, descriptors_names, distances_names, K=5, store = io_config.STORE_RESULTS_TXT_BY_DESCRIPTOR):
     """Save top-K retrieval results for each descriptor and distance."""
-    io_config.RESULTS_DIR.mkdir(exist_ok=True)
-    result_files = [(io_config.RESULTS_DIR / f"{name}_res.txt").open("w") for name in descriptors_names]
+    if store:
+        io_config.RESULTS_DIR.mkdir(exist_ok=True)
+        result_files = [(io_config.RESULTS_DIR / f"{name}_res.txt").open("w") for name in descriptors_names]
 
-    for image_num, image_metrics in enumerate(all_metrics):
-        for descriptor_type, metric in enumerate(image_metrics):
-            f = result_files[descriptor_type]
-            f.write(f"Image: {image_num:05d}.jpg\n")
-            gt_images = ground_truth[image_num]
-            f.write(f"Ground truth: {gt_images}\n\n")
-            for distance_type, distance_name in enumerate(distances_names):
-                f.write(f"With distance: {distance_name}\n")
-                f.write(f"Top {K} images:\n")
-                distances = np.array(metric[distance_type])
-                if isinstance(general_config.WANTED_DISTANCES[distance_type], tuple):
-                    distances = 1 / (distances + 1e-16)
-                top_k_res = np.argsort(distances)[:K]
-                np.savetxt(f, top_k_res[None], fmt="%d")
-                f.write("--------------------------------------------------------------\n")
-            f.write("==============================================================\n")
-    for f in result_files:
-        f.close()
+        for image_num, image_metrics in enumerate(all_metrics):
+            for descriptor_type, metric in enumerate(image_metrics):
+                f = result_files[descriptor_type]
+                f.write(f"Image: {image_num:05d}.jpg\n")
+                gt_images = ground_truth[image_num]
+                f.write(f"Ground truth: {gt_images}\n\n")
+                for distance_type, distance_name in enumerate(distances_names):
+                    f.write(f"With distance: {distance_name}\n")
+                    f.write(f"Top {K} images:\n")
+                    distances = np.array(metric[distance_type])
+                    if isinstance(general_config.WANTED_DISTANCES[distance_type], tuple):
+                        distances = 1 / (distances + 1e-16)
+                    top_k_res = np.argsort(distances)[:K]
+                    np.savetxt(f, top_k_res[None], fmt="%d")
+                    f.write("--------------------------------------------------------------\n")
+                f.write("==============================================================\n")
+        for f in result_files:
+            f.close()
 
 
 def resume_results(all_metrics, ground_truth, descriptors_names, distances_names,
@@ -149,17 +150,22 @@ def run_dev():
     NUMBER_IMAGE_DEV = io_config.count_jpgs(io_config.DEV_DIR)
     NAME_OF_DEV_SET = io_config.DEV_NAME
 
+
+    # TODO GENERALIZE
     # Compute descriptors for dev set
     all_descriptors = compute_development_descriptors(
-        WANTED_COLOR_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_IMAGE_DEV
+        DEV_COLOR_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_IMAGE_DEV
     )
 
+    # TODO GENERALIZE
     # Load precomputed DB descriptors
-    descriptors_names = [f.__name__ for f in WANTED_COLOR_DESCRIPTORS]
+    descriptors_names = [f.__name__ for f in DEV_COLOR_DESCRIPTORS]
     distances_names = [
         d[0].__name__ if isinstance(d, tuple) else d.__name__
         for d in general_config.WANTED_DISTANCES
     ]
+
+    # TODO GENERALIZE
     files = [(io_config.COLOR_DESC_DIR / f"{name}.txt").open("r") for name in descriptors_names]
     precomputed_descriptors = load_precomputed_descriptors(files)
 

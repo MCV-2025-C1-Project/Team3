@@ -3,3 +3,4 @@ data/
 results/
 __pycache__/
 test/
+descriptors/color_descriptors/stored_color_descriptors
