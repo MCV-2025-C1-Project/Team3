@@ -9,9 +9,12 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 # Data dir
 DB_NAME = "BBDD"
 DEV_NAME = "qsd1_w1"
+TEST_NAME = "qst1_w1"
+
 DATA_DIR = BASE_DIR / "data"
 DB_DIR   = DATA_DIR / DB_NAME
 DEV_DIR  = DATA_DIR / DEV_NAME
+TEST_DIR = DATA_DIR / TEST_NAME
 
 # Outputs
 RESULTS_DIR = BASE_DIR / "results"
@@ -20,8 +23,6 @@ COLOR_DESC_DIR  = DESCRIPTORS_DIR / "color_descriptors"
 
 HIST_DIR        = RESULTS_DIR / "histograms"
 STORE_HISTOGRAMS = False
-TOP_K = 5
-MIN_K = 1
 
 # Helpers
 def ensure_dirs() -> None:
