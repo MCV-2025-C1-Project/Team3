@@ -1,6 +1,7 @@
 # MCV-C1 Project: Content Based Image Retrieval | Team3
 ## Project Description
 This project contains all the code necessary to build an end-to-end image retrieval system. The system allows users to query images and retrieve the most visually similar results from a database using various feature extraction and distance functions.
+
 The figure below illustrates the main idea:
 ![Image Retrieval Pipeline](assets/main_idea_project_c1.png)
 
@@ -83,6 +84,26 @@ Once the virtual environment is active, install the required Python libraries li
 pip install -r requirements.txt
 ```
 This command will install all dependencies necessary to run the entire pipeline.
+
+
+## How to use config files
+**General Config File**
+
+The file config/general_config.py defines the main execution parameters that control which parts of the pipeline are executed and how the evaluation is performed.
+
+Below is a short description of the main parameters:
+- PRECOMPUTE:	If True, the system computes and stores image descriptors for the database. Set to False to reuse existing precomputed descriptors.
+- DEV_PREDICTION:	If True, runs the validation pipeline to evaluate descriptors and metrics using the dev queries.
+- TEST_PREDICTION:	If True, runs the test pipeline to generate retrieval results for the test queries.
+- TOP_K_TEST:	Number of top-ranked images retrieved for each query in the test set.
+- K_VALUES:	List of k values used for evaluation metrics such as mAP@1, mAP@5, etc.
+- DESCRIPTORS	List of descriptor families to use (e.g., "COLOR_DESCRIPTORS", "TEXTURE_DESCRIPTORS", etc.).
+- WANTED_DISTANCES	List of distance or similarity functions used to compare descriptors.
+
+**IO Config File**
+
+**Color Descriptors Config File**
+
 
 
 
