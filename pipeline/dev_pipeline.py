@@ -1,4 +1,5 @@
 import cv2
+import pandas as pd
 import numpy as np
 import pickle
 import logging
@@ -68,24 +69,38 @@ def write_results(all_metrics, ground_truth, descriptors_names, distances_names,
 
 
 def resume_results(all_metrics, ground_truth, descriptors_names, distances_names,
-                   WANTED_DISTANCES, NUMBER_IMAGE_DEV, eval_ks):
-    """Visual summary: AP@K heatmaps for descriptors vs distances."""
+                   wanted_distances, NUMBER_IMAGE_DEV, eval_ks):
+    """
+    Visual summary: AP@K heatmaps for descriptors vs distances.
+    Also saves a CSV with numerical results sorted by average mAP.
+    """
     Path("results").mkdir(exist_ok=True)
+    rows = [] 
+
     for eval_k in eval_ks:
         descriptor_scores = [[0 for _ in range(len(distances_names))] for _ in range(len(descriptors_names))]
+        
         for image_num, image_metrics in enumerate(all_metrics):
             for descriptor_type, metric in enumerate(image_metrics):
                 for distance_type, distance_name in enumerate(distances_names):
                     distances = np.array(metric[distance_type])
-                    if isinstance(WANTED_DISTANCES[distance_type], tuple):
+                    if isinstance(wanted_distances[distance_type], tuple):
                         distances = 1 / (distances + 1e-16)
                     predictions = np.argsort(distances)[:eval_k]
                     score = metrics.average_precision_k(ground_truth[image_num], predictions, eval_k)
                     descriptor_scores[descriptor_type][distance_type] += score
+
+        # Media por descriptor-distancia
         for i in range(len(descriptor_scores)):
             for j in range(len(descriptor_scores[0])):
                 descriptor_scores[i][j] /= NUMBER_IMAGE_DEV
+                rows.append({
+                    "descriptor": descriptors_names[i],
+                    "distance": distances_names[j],
+                    f"mAP@{eval_k}": descriptor_scores[i][j]
+                })
 
+        # Save heatmaps
         fig, ax = plt.subplots()
         ax.set_title(f"Scores with K={eval_k}", fontsize=12, fontweight="bold")
         cax = ax.matshow(descriptor_scores, cmap="viridis")
@@ -94,10 +109,24 @@ def resume_results(all_metrics, ground_truth, descriptors_names, distances_names
         ax.set_xticklabels([n.replace("_", " ") for n in distances_names], rotation=90)
         ax.set_yticklabels(descriptors_names)
         for i in range(len(descriptors_names)):
-            for j in range(len(distances_names)):
+            for j in range(len(descriptor_scores[0])):
                 ax.text(j, i, f"{descriptor_scores[i][j]:.3f}", ha="center", va="center", color="white", fontsize=8)
         plt.colorbar(cax)
         plt.savefig(io_config.RESULTS_DIR / f"obtained_scores_k{eval_k}.png", dpi=300, bbox_inches="tight")
+
+    df = pd.DataFrame(rows)
+    df = df.groupby(["descriptor", "distance"]).first().reset_index()
+
+    map_cols = [c for c in df.columns if c.startswith("mAP@")]
+    df["mean_mAP"] = df[map_cols].mean(axis=1)
+
+    #   Sort by the mean of both columns
+    df = df.sort_values(by="mean_mAP", ascending=False)
+
+    df.to_csv(io_config.RESULTS_DIR / "dev_scores.csv", index=False)
+    print(f"✅ Results saved to {io_config.RESULTS_DIR}/dev_scores.csv (sorted by mean mAP)")
+
+
 
 
 def run_dev():
