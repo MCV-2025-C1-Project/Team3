@@ -56,6 +56,24 @@ Team3/
 ```
 
 ## Instructions 
+To run the code follow these instructions: 
+
+**Clone the repository**
+
+Clone the github repository by running the following command:
+
+```bash
+git clone https://github.com/MCV-2025-C1-Project/Team3.git
+```
+
+**Create virtual environemnt**
+
+The first thing you will need is python3.12 or higher to create a virtual environment. There are several ways to do this but in our team we did the following steps. First you will need to create a virtual environment with the following command and run it.
+
+```bash
+python3 -m venv venv
+source ./venv/bin/activate
+```
 
 
 ## Contact
