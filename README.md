@@ -89,18 +89,24 @@ This command will install all dependencies necessary to run the entire pipeline.
 ## How to use config files
 **General Config File**
 
-The file config/general_config.py defines the main execution parameters that control which parts of the pipeline are executed and how the evaluation is performed.
+This file defines the main execution parameters that control which parts of the pipeline are executed and how the evaluation is performed.
 
 Below is a short description of the main parameters:
-- PRECOMPUTE:	If True, the system computes and stores image descriptors for the database. Set to False to reuse existing precomputed descriptors.
-- DEV_PREDICTION:	If True, runs the validation pipeline to evaluate descriptors and metrics using the dev queries.
-- TEST_PREDICTION:	If True, runs the test pipeline to generate retrieval results for the test queries.
-- TOP_K_TEST:	Number of top-ranked images retrieved for each query in the test set.
-- K_VALUES:	List of k values used for evaluation metrics such as mAP@1, mAP@5, etc.
-- DESCRIPTORS	List of descriptor families to use (e.g., "COLOR_DESCRIPTORS", "TEXTURE_DESCRIPTORS", etc.).
-- WANTED_DISTANCES	List of distance or similarity functions used to compare descriptors.
+- **PRECOMPUTE**:	If True, the system computes and stores image descriptors for the database. Set to False to reuse existing precomputed descriptors.
+- **DEV_PREDICTION**:	If True, runs the validation pipeline to evaluate descriptors and metrics using the dev queries.
+- **TEST_PREDICTION**:	If True, runs the test pipeline to generate retrieval results for the test queries.
+- **TOP_K_TEST**:	Number of top-ranked images retrieved for each query in the test set.
+- **K_VALUES**:	List of k values used for evaluation metrics such as mAP@1, mAP@5, etc.
+- **DESCRIPTORS**:	List of descriptor families to use (e.g., "COLOR_DESCRIPTORS", "TEXTURE_DESCRIPTORS", etc.).
+- **WANTED_DISTANCES**:	List of distance or similarity functions used to compare descriptors.
 
 **IO Config File**
+
+This file defines all input and output paths used across the project. Most of these paths are automatically managed by the pipeline and do not need to be modified.
+However, there are two parameters that are relevant for the user when running experiments:
+
+- **STORE_HISTOGRAMS**: If True, histogram visualizations for each image descriptor are generated and stored.
+- **STORE_RESULTS_TXT_BY_DESCRIPTOR**: If True, a .txt file is generated for each descriptor, showing the top-5 most relevant retrieved images for every development query, along with their comparison to the ground truth. This option is useful for debugging and understanding retrieval behavior.
 
 **Color Descriptors Config File**
 
