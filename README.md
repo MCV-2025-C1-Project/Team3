@@ -99,6 +99,25 @@ data/
 
 If the folder names are different, they should be updated accordingly in io_config.py.
 
+**Execute main**
+
+Once the data structure is created, run the main file:
+```bash
+python main.py
+```
+
+**Seeing the results**
+
+After this, you will have different outputs depending on the configurations. These can be found on:
+- results/method1/result.pkl
+- results/method2/result.pkl
+- results/dev_score.csv
+- results/obtained_scores_k1.png
+- results/obtained_scores_k2.png
+- descriptors/color_descriptors/stored_color_descriptors/*.txt
+
+What these files contain is explained on the [Project Organization](#project-organization) section.
+
 ## How to use config files
 **General Config File**
 
