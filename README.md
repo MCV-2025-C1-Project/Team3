@@ -85,6 +85,19 @@ pip install -r requirements.txt
 ```
 This command will install all dependencies necessary to run the entire pipeline.
 
+**Create data folder**
+
+As shown in the project structure diagram above, the data/ directory must exist at the root level of the repository.
+Create it manually if it does not exist, and place the datasets inside following the expected structure:
+
+```
+data/
+├── BBDD/
+├── qsd1_w1/
+└── qst1_w1/
+```
+
+If the folder names are different, they should be updated accordingly in io_config.py.
 
 ## How to use config files
 **General Config File**
