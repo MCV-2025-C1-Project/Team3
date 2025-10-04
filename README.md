@@ -122,16 +122,17 @@ However, there are two parameters that are relevant for the user when running ex
 - **STORE_RESULTS_TXT_BY_DESCRIPTOR**: If True, a .txt file is generated for each descriptor, showing the top-5 most relevant retrieved images for every development query, along with their comparison to the ground truth. This option is useful for debugging and understanding retrieval behavior.
 
 **Color Descriptors Config File**
+
 This file defines all color descriptor configurations.
 This configuration file is responsible for:
 
-1. Defining search spaces for color descriptors (color spaces, channels, bin sizes, and value ranges).
+- Defining search spaces for color descriptors (color spaces, channels, bin sizes, and value ranges).
 
-2. Generating multiple descriptor configurations automatically using grid search.
+- Generating multiple descriptor configurations automatically using grid search.
 
-3. Combining multiple descriptors into mixed configurations (e.g., HSV + Lab).
+- Combining multiple descriptors into mixed configurations (e.g., HSV + Lab).
 
-4. Selecting which descriptors to use in the precompute stage, evaluation stage and test stage (in the test stage only two methods should be added definig the name of the descriuptor + distance to use).
+- Selecting which descriptors to use in the precompute stage, evaluation stage and test stage (in the test stage only two methods should be added definig the name of the descriuptor + distance to use).
 
 It is important to note that the name convention is: <color_space>_<channels>_bins<bin_values>_w<weights>
 
