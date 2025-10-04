@@ -2,7 +2,7 @@
 ## Project Description
 This project contains all the code necessary to build an end-to-end image retrieval system. The system allows users to query images and retrieve the most visually similar results from a database using various feature extraction and distance functions.
 The figure below illustrates the main idea:
-![Image Retrieval Pipeline](assets/main_idea_project_c1.png)
+![Image Retrieval Pipeline](assets/main)
 
 ## Project Organization
 The project organitzation is the following:
@@ -64,16 +64,25 @@ Clone the github repository by running the following command:
 
 ```bash
 git clone https://github.com/MCV-2025-C1-Project/Team3.git
+cd Team3
 ```
 
 **Create virtual environemnt**
 
-The first thing you will need is python3.12 or higher to create a virtual environment. There are several ways to do this but in our team we did the following steps. First you will need to create a virtual environment with the following command and run it.
+The next thing you will need is python3.12 or higher to create a virtual environment. There are several ways to do this but in our team we did the following steps. First you will need to create a virtual environment with the following command and run it.
 
 ```bash
 python3 -m venv venv
 source ./venv/bin/activate
 ```
+
+**Install dependencies**
+Once the virtual environment is active, install the required Python libraries listed in the requirements.txt file:
+```bash
+pip install -r requirements.txt
+```
+This command will install all dependencies necessary to run the entire pipeline.
+
 
 
 ## Contact
