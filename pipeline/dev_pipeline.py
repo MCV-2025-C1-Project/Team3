@@ -51,6 +51,8 @@ def write_results(all_metrics, ground_truth, descriptors_names, distances_names,
         for descriptor_type, metric in enumerate(image_metrics):
             f = result_files[descriptor_type]
             f.write(f"Image: {image_num:05d}.jpg\n")
+            gt_images = ground_truth[image_num]
+            f.write(f"Ground truth: {gt_images}\n\n")
             for distance_type, distance_name in enumerate(distances_names):
                 f.write(f"With distance: {distance_name}\n")
                 f.write(f"Top {K} images:\n")
