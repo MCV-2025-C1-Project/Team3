@@ -2,11 +2,12 @@
 ## Project Description
 This project contains all the code necessary to build an end-to-end image retrieval system. The system allows users to query images and retrieve the most visually similar results from a database using various feature extraction and distance functions.
 The figure below illustrates the main idea:
-![Image Retrieval Pipeline](docs/retrieval_pipeline.png)
+![Image Retrieval Pipeline](assets/main_idea_project_c1.png)
 
 ## Project Organization
 The project organitzation is the following:
 
+```
 Team3/
 ├── README.md                         <- Main project description and usage instructions
 ├── requirements.txt                  <- Python dependencies required to run the project
@@ -52,6 +53,7 @@ Team3/
 │   └── metrics.py                    <- Implementation of distance functions
 │
 ├── main.py                           <- Entry point to run descriptor generation, development, or test phases
+```
 
 ## Instructions 
 
