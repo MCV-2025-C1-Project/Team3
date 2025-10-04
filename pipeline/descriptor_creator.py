@@ -5,6 +5,7 @@ Pipeline to precompute descriptors for the full DB (BBDD).
 import cv2
 import numpy as np
 from config import io_config, general_config
+from tqdm import tqdm
 
 
 def precompute_descriptors():
@@ -32,14 +33,13 @@ def precompute_descriptors():
         data["files"] = [(data["dir"] / f"{name}.txt").open("w") for name in names]
 
     # Compute
-    for i in range(io_config.count_jpgs(io_config.DB_DIR)):
+    for i in tqdm(range(io_config.count_jpgs(io_config.DB_DIR)), desc="Precomputed images:"):
         image_path = io_config.db_image_path(i)
         img = cv2.imread(image_path)
         for block, data in ALL_BLOCKS.items():
             for idx, function in enumerate(data["descriptors"]):
                 descriptor = function(img, io_config.DB_NAME, i, visualize=io_config.STORE_HISTOGRAMS)
                 np.savetxt(data["files"][idx], descriptor[None])
-        print(f"Processed {i}")
 
     # Close files
     for block, data in ALL_BLOCKS.items():

@@ -5,6 +5,7 @@ import pickle
 import logging
 from pathlib import Path
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 from utils import metrics
 from config import io_config, general_config
@@ -18,7 +19,7 @@ log = logging.getLogger(__name__)
 def compute_development_descriptors(WANTED_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_IMAGE_DEV):
     """Compute descriptors for all dev set images."""
     all_descriptors = []
-    for i in range(NUMBER_IMAGE_DEV):
+    for i in tqdm(range(NUMBER_IMAGE_DEV), desc="Dev images processed: "):
         image_path = io_config.dev_image_path(i)
         img = cv2.imread(image_path)
         image_descriptors = [f(img, NAME_OF_DEV_SET, i, visualize=False) for f in WANTED_DESCRIPTORS]
@@ -125,7 +126,7 @@ def resume_results(all_metrics, ground_truth, descriptors_names, distances_names
     df = df.sort_values(by="mean_mAP", ascending=False)
 
     df.to_csv(io_config.RESULTS_DIR / "dev_scores.csv", index=False)
-    print(f"✅ Results saved to {io_config.RESULTS_DIR}/dev_scores.csv (sorted by mean mAP)")
+    log.info(f"✅ Results saved to {io_config.RESULTS_DIR}/dev_scores.csv (sorted by mean mAP)")
 
 
 

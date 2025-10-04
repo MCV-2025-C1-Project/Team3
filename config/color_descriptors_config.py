@@ -41,7 +41,7 @@ COLOR_SPACES = {
 
 WEIGHTS_OPTIONS = {
     1: [[1.0]],
-    2: [[1.0,1.0]],
+    2: [[1.0, 1.0]],
     3: [
         [1.0, 1.0, 1.0],
         [0.5, 0.25, 0.25],
@@ -58,7 +58,7 @@ for space, params in COLOR_SPACES.items():
         if len(channels) != len(ranges):
             continue
         for weights in WEIGHTS_OPTIONS[len(channels)]:
-            name = f"{space}_{'-'.join(channels)}_bins{'-'.join(map(str, bins))}_w{'-'.join(map(str, weights))}"
+            name = f"{space}_{'_'.join(channels)}_bins{'-'.join(map(str, bins))}_w{'-'.join(map(str, weights))}"
             cfg = {
                 "name": name,
                 "color_space": space,
@@ -93,12 +93,12 @@ INDIVIDUAL_COLOR_DESCRIPTORS_NAMES = [cfg["name"] for cfg in COLOR_DESCRIPTORS_C
 MIXED_CONFIGS = {
     "mixed_gray_hs_lab": [
         CONFIGS_BY_NAME["gray_Gray_bins256_w1.0"],
-        CONFIGS_BY_NAME["hsv_H-S_bins180-256_w1.0-1.0"],
-        CONFIGS_BY_NAME["lab_L-A-B_bins256-256-256_w1.0-1.0-1.0"],
+        CONFIGS_BY_NAME["hsv_H_S_bins180-256_w1.0-1.0"],
+        CONFIGS_BY_NAME["lab_L_A_B_bins256-256-256_w1.0-1.0-1.0"],
     ],
     "mixed_rgb_hsv": [
-        CONFIGS_BY_NAME["rgb_B-G-R_bins256-256-256_w1.0-1.0-1.0"],
-        CONFIGS_BY_NAME["hsv_H-S-V_bins180-256-256_w1.0-1.0-1.0"],
+        CONFIGS_BY_NAME["rgb_B_G_R_bins256-256-256_w1.0-1.0-1.0"],
+        CONFIGS_BY_NAME["hsv_H_S_V_bins180-256-256_w1.0-1.0-1.0"],
     ]
 }
 
@@ -131,26 +131,19 @@ PRECOMPUTED_COLOR_DESCRIPTOR_NAMES = ALL_COLOR_DESCRIPTORS_NAMES
 DEV_COLOR_DESCRIPTORS = ALL_COLOR_DESCRIPTORS
 DEV_COLOR_DESCRIPTOR_NAMES = ALL_COLOR_DESCRIPTORS_NAMES
 
+PREDICT_COLOR_DESCRIPTORS = [
+    descriptors.generic_color_descriptor(
+        color_space=cfg["color_space"],
+        channels=cfg["channels"],
+        bins=cfg["bins"],
+        ranges=cfg["ranges"],
+        weights=cfg["weights"]
+    )
+    for cfg in [CONFIGS_BY_NAME["hsv_H_S_V_bins180-256-256_w1.0-1.0-1.0"], 
+                CONFIGS_BY_NAME["lab_L_A_B_bins256-256-256_w1.0-1.0-1.0"]]
+]
 
 PREDICTING_COLOR_DESCRIPTORS = [
-    (
-        descriptors.generic_color_descriptor(
-            color_space=CONFIGS_BY_NAME["gray_Gray_bins256_w1.0"]["color_space"],
-            channels=CONFIGS_BY_NAME["gray_Gray_bins256_w1.0"]["channels"],
-            bins=CONFIGS_BY_NAME["gray_Gray_bins256_w1.0"]["bins"],
-            ranges=CONFIGS_BY_NAME["gray_Gray_bins256_w1.0"]["ranges"],
-            weights=CONFIGS_BY_NAME["gray_Gray_bins256_w1.0"]["weights"],
-        ),
-        metrics.canberra_distance,
-    ),
-    (
-        descriptors.generic_color_descriptor(
-            color_space=CONFIGS_BY_NAME["gray_Gray_bins256_w1.0"]["color_space"],
-            channels=CONFIGS_BY_NAME["gray_Gray_bins256_w1.0"]["channels"],
-            bins=CONFIGS_BY_NAME["gray_Gray_bins256_w1.0"]["bins"],
-            ranges=CONFIGS_BY_NAME["gray_Gray_bins256_w1.0"]["ranges"],
-            weights=CONFIGS_BY_NAME["gray_Gray_bins256_w1.0"]["weights"],
-        ),
-        metrics.hellinger_kernel,
-    ),
+    (PREDICT_COLOR_DESCRIPTORS[0], metrics.canberra_distance),
+    (PREDICT_COLOR_DESCRIPTORS[1], metrics.hellinger_kernel),
 ]

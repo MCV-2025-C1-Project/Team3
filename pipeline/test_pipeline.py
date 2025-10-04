@@ -5,8 +5,9 @@ from config import general_config
 from config import io_config
 from config.color_descriptors_config import PREDICTING_COLOR_DESCRIPTORS
 from utils.common import load_precomputed_descriptors
+import logging
 
-
+log = logging.getLogger(__name__)
 
 def predict_and_save_results():
     """
@@ -24,7 +25,7 @@ def predict_and_save_results():
     precomputed_descriptors = load_precomputed_descriptors(files)
 
     for method_idx, (used_descriptor, used_distance) in enumerate(PREDICTING_COLOR_DESCRIPTORS, start=1):
-        print(f"Running prediction for method {method_idx}: {used_descriptor.__name__} + {used_distance.__name__}")
+        log.info(f"Running prediction for method {method_idx}: {used_descriptor.__name__} + {used_distance.__name__}")
 
         results = []
         for image in images:
@@ -50,4 +51,4 @@ def predict_and_save_results():
         with open(output_path, "wb") as f:
             pickle.dump(results, f)
 
-        print(f"Saved results for method {method_idx} → {output_path}")
+        log.info(f"Saved results for method {method_idx} → {output_path}")
