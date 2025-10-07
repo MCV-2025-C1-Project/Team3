@@ -9,6 +9,7 @@ from utils import metrics
 
 # Search space
 COLOR_SPACES = {
+    '''
     "gray": {
         "channels": [["Gray"]],
         "bins": [[256], [128], [64],[32],[16],[8]],
@@ -18,17 +19,6 @@ COLOR_SPACES = {
         "channels": [["B", "G", "R"]],
         "bins": [[256, 256, 256], [128, 128, 128], [64, 64, 64],[32,32,32],[16,16,16]],
         "ranges": [[(0, 256)] * 3],
-    },
-    "hsv": {
-        "channels": [["H", "S", "V"]],
-        "bins": [
-            [180, 256, 256],   
-            [90, 128, 128],    
-            [45, 64, 64],
-            [20,32,32],
-            [10,16,16]    
-        ],
-        "ranges": [[(0, 180), (0, 256), (0, 256)]],
     },
     "lab": {
         "channels": [["L", "A", "B"]],
@@ -40,14 +30,26 @@ COLOR_SPACES = {
         ],
         "ranges": [[(0, 256)] * 3],
     },
+    '''
+    "hsv": {
+        "channels": [["H", "S", "V"]],
+        "bins": [
+            [180, 256, 256],   
+            #[90, 128, 128],    
+            #[45, 64, 64],
+            [20,32,32],
+            #[10,16,16]    
+        ],
+        "ranges": [[(0, 180), (0, 256), (0, 256)]],
+    },
     "ycbcr": {
         "channels": [["Y", "Cr", "Cb"]],
         "bins": [
             [256, 256, 256],
-            [128, 128, 128],
-            [64, 64, 64],
+            #[128, 128, 128],
+            #[64, 64, 64],
             [32,32,32],
-            [16,16,16]
+            #[16,16,16]
         ],
         "ranges": [[(0, 256)] * 3],
     },
@@ -58,12 +60,17 @@ WEIGHTS_OPTIONS = {
     2: [[1.0, 1.0], [0.8, 1.2], [1.2, 0.8]],
     3: [
         [1.0, 1.0, 1.0],
-        [1.0, 0.8, 1.2],
-        [1.2, 1.0, 0.8],
+        #[1.0, 0.8, 1.2],
+        #[1.2, 1.0, 0.8],
         [3.0,1.0,1.0],
         [0.5,3.0,1.0]
     ],
 }
+
+HIERARCHICAL_LEVELS = [
+    [1], [2], [3], [4], [1,2], [1,3], [2,3], [1,2,3]
+]
+
 
 # Grid search configs
 
@@ -73,16 +80,18 @@ for space, params in COLOR_SPACES.items():
         if len(channels) != len(ranges):
             continue
         for weights in WEIGHTS_OPTIONS[len(channels)]:
-            name = f"{space}_{'_'.join(channels)}_bins{'-'.join(map(str, bins))}_w{'-'.join(map(str, weights))}"
-            cfg = {
-                "name": name,
-                "color_space": space,
-                "channels": channels,
-                "bins": bins,
-                "ranges": ranges,
-                "weights": weights,
-            }
-            COLOR_DESCRIPTORS_CONFIGS.append(cfg)
+            for hierarchical_levels in HIERARCHICAL_LEVELS:
+                name = f"{space}_{'_'.join(channels)}_bins{'-'.join(map(str, bins))}_w{'-'.join(map(str, weights))}_hier{'-'.join(map(str, hierarchical_levels))}"
+                cfg = {
+                    "name": name,
+                    "color_space": space,
+                    "channels": channels,
+                    "bins": bins,
+                    "ranges": ranges,
+                    "weights": weights,
+                    "hierarchical": hierarchical_levels,
+                }
+                COLOR_DESCRIPTORS_CONFIGS.append(cfg)
 
 CONFIGS_BY_NAME = {cfg["name"]: cfg for cfg in COLOR_DESCRIPTORS_CONFIGS}
 
@@ -94,7 +103,8 @@ INDIVIDUAL_COLOR_DESCRIPTORS = [
         channels=cfg["channels"],
         bins=cfg["bins"],
         ranges=cfg["ranges"],
-        weights=cfg["weights"]
+        weights=cfg["weights"],
+        hierarchical_levels=cfg["hierarchical"]
     )
     for cfg in COLOR_DESCRIPTORS_CONFIGS
 ]
@@ -125,6 +135,7 @@ MIXED_COLOR_DESCRIPTORS = {
             "bins": cfg["bins"],
             "ranges": cfg["ranges"],
             "weights": cfg["weights"],
+            "hierarchical": cfg["hierarchical"],
         }
         for cfg in cfgs
     ])
@@ -152,7 +163,8 @@ PREDICT_COLOR_DESCRIPTORS = [
         channels=cfg["channels"],
         bins=cfg["bins"],
         ranges=cfg["ranges"],
-        weights=cfg["weights"]
+        weights=cfg["weights"],
+        hierarchical_levels=cfg["hierarchical"]
     )
     for cfg in [CONFIGS_BY_NAME["hsv_H_S_V_bins180-256-256_w1.0-1.0-1.0"], 
                 CONFIGS_BY_NAME["lab_L_A_B_bins256-256-256_w1.0-1.0-1.0"]]

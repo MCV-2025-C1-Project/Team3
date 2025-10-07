@@ -61,9 +61,15 @@ def visualize_histogram(hist: NDArray[np.float32], name_of_the_set: str, histogr
 
     plt.close()
 
-def compute_histogram(img: NDArray[np.uint8], bins: int = 256, value_range: tuple[int,int] = (0,256)) -> NDArray[np.float32]:
+
+def compute_histogram(
+    img: NDArray[np.uint8],
+    bins: int = 256,
+    value_range: tuple[int, int] = (0, 256),
+    levels: list[int] = [1],
+) -> NDArray[np.float32]:
     """
-    Compute a normalized histogram for a single-channel image.
+    Compute a histogram for a single-channel image.
 
     Parameters
     ----------
@@ -73,22 +79,51 @@ def compute_histogram(img: NDArray[np.uint8], bins: int = 256, value_range: tupl
         Number of bins in the histogram.
     - value_range : tuple of int
         The (min, max) value range for the histogram.
+    - levels : list[int]
+        List of hierarchical levels to compute.
+        Example:
+            [1]      -> histogram of the whole image.
+            [2]      -> histograms of 4 quadrants (2x2 grid).
+            [1, 2, 3]-> histogram of whole image + 4 quadrants + 9 subregions (3x3 grid).
 
     Returns
     -------
     - hist : NDArray[np.float32]
-        Normalized histogram of shape (bins,).
+        Concatenated normalized histograms from all specified levels.
     """
-    hist, _ = np.histogram(img, bins=bins, range=value_range)
-    hist = hist.astype(np.float32)
-    hist /= (hist.sum() + 1e-7)
-    return hist
+
+    def _compute_single_hist(image: NDArray[np.uint8]) -> NDArray[np.float32]:
+        hist, _ = np.histogram(image, bins=bins, range=value_range)
+        hist = hist.astype(np.float32)
+        hist /= (hist.sum() + 1e-7)
+        return hist
+
+    H, W = img.shape
+    hist_list = []
+
+    for level in levels:
+        n_rows = n_cols = level
+        row_step = H // n_rows
+        col_step = W // n_cols
+
+        for i in range(n_rows):
+            for j in range(n_cols):
+                r_start, r_end = i * row_step, (i + 1) * row_step if i < n_rows - 1 else H
+                c_start, c_end = j * col_step, (j + 1) * col_step if j < n_cols - 1 else W
+
+                region = img[r_start:r_end, c_start:c_end]
+                hist_list.append(_compute_single_hist(region))
+
+    return np.concatenate(hist_list, axis=0)
+
+
 
 def generic_color_descriptor(color_space: str,
                        channels: list[str],
                        bins: list[int],
                        ranges: list[tuple[int, int]],
-                       weights: list[float]):
+                       weights: list[float],
+                       hierarchical_levels: list[int]):
     """
     Factory function that creates a descriptor function from a given configuration.
 
@@ -148,7 +183,7 @@ def generic_color_descriptor(color_space: str,
 
         hists = []
         for img_ch, b, r, w in zip(selected_imgs, bins, ranges, weights):
-            hist = compute_histogram(img_ch, bins=b, value_range=r)
+            hist = compute_histogram(img_ch, bins=b, value_range=r, levels=hierarchical_levels)
             hists.append(hist * w)
 
         final_hist = np.concatenate(hists)
