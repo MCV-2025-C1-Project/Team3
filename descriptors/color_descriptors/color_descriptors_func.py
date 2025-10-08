@@ -205,6 +205,7 @@ def generic_color_descriptor(color_space: str,
     f"{color_space}_{'_'.join(channels)}"
     f"_bins{'-'.join(map(str,bins))}"
     f"_w{'-'.join(map(str,weights))}"
+    f"_hier{'-'.join(map(str,hierarchical_levels))}"
     )
     return descriptor_fn
 
