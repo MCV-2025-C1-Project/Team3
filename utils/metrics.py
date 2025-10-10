@@ -125,7 +125,7 @@ def bhattacharyya_distance(x: NDArray, y: NDArray) -> float:
             Bhattacharyya distance between the two given NumPy arrays
     """
 
-    return -np.log(np.sum(np.sqrt(x * y)) + 1e-10)
+    return -np.log(np.clip(np.sum(np.sqrt(x * y)), 1e-10, 1.0))
 
 
 def earth_movers_distance(x: NDArray, y: NDArray) -> float:
