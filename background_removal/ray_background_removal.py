@@ -1,11 +1,6 @@
 import numpy as np
 import cv2
-import matplotlib.pyplot as plt
-from scipy.signal import find_peaks
-from scipy.ndimage import gaussian_filter1d
-import plotly.graph_objects as go
 from utils import metrics
-from tqdm import tqdm
 from numpy.typing import NDArray
 
 def get_component_hists(img : NDArray):
