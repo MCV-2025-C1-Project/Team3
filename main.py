@@ -22,10 +22,14 @@ if __name__ == "__main__":
 
     if general_config.DEV_PREDICTION:
         log.info("Running development evaluation pipeline...")
+        if general_config.REMOVE_BACKGROUND:
+            pass
         run_dev()
 
     if general_config.TEST_PREDICTION:
         log.info("Running test/prediction pipeline...")
+        if general_config.REMOVE_BACKGROUND:
+            pass
         predict_and_save_results()
 
     log.info("Finished.")

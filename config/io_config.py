@@ -18,6 +18,9 @@ TEST_DIR = DATA_DIR / TEST_NAME
 
 # Outputs
 RESULTS_DIR = BASE_DIR / "results"
+MASKS_DIR = BASE_DIR/"background_removal"
+MASK_DIR_ALG_X = MASKS_DIR + "/outputs_algorithm_x"
+
 DESCRIPTORS_DIR = BASE_DIR / "descriptors"
 COLOR_DESC_DIR  = DESCRIPTORS_DIR / "color_descriptors/stored_color_descriptors"
 

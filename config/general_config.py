@@ -23,3 +23,5 @@ WANTED_DISTANCES = [
     metrics.earth_movers_distance,
     metrics.canberra_distance,
 ]
+
+REMOVE_BACKGROUND = True
