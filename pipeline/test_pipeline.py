@@ -6,6 +6,7 @@ from config import io_config
 from config.color_descriptors_config import PREDICTING_COLOR_DESCRIPTORS
 from utils.common import load_precomputed_descriptors
 import logging
+import h5py
 
 log = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ def predict_and_save_results():
     images = sorted([p for p in io_config.TEST_DIR.iterdir() if p.suffix.lower() == ".jpg"])
 
     descriptors_names = [f[0].__name__ for f in PREDICTING_COLOR_DESCRIPTORS]
-    files = [(io_config.COLOR_DESC_DIR / f"{name}.txt").open("r") for name in descriptors_names]
+    files = [h5py.File(io_config.COLOR_DESC_DIR / f"{name}.h5", 'r') for name in descriptors_names]
     precomputed_descriptors = load_precomputed_descriptors(files)
 
     for method_idx, (used_descriptor, used_distance) in enumerate(PREDICTING_COLOR_DESCRIPTORS, start=1):
