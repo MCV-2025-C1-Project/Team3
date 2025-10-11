@@ -113,42 +113,10 @@ INDIVIDUAL_COLOR_DESCRIPTORS_NAMES = [cfg["name"] for cfg in COLOR_DESCRIPTORS_C
 
 
 
-# Mixed descriptors
-'''
-MIXED_CONFIGS = {
-    "mixed_gray_hs_lab": [
-        CONFIGS_BY_NAME["gray_Gray_bins256_w1.0"],
-        CONFIGS_BY_NAME["hsv_H_S_V_bins180-256-256_w1.0-1.0-1.0"],
-        CONFIGS_BY_NAME["lab_L_A_B_bins256-256-256_w1.0-1.0-1.0"],
-    ],
-    "mixed_rgb_hsv": [
-        CONFIGS_BY_NAME["rgb_B_G_R_bins256-256-256_w1.0-1.0-1.0"],
-        CONFIGS_BY_NAME["hsv_H_S_V_bins180-256-256_w1.0-1.0-1.0"],
-    ]
-}
-MIXED_COLOR_DESCRIPTORS = {
-    name: descriptors.mixed_concat_descriptor([
-        {
-            "color_space": cfg["color_space"],
-            "channels": cfg["channels"],
-            "bins": cfg["bins"],
-            "ranges": cfg["ranges"],
-            "weights": cfg["weights"],
-            "hierarchical": cfg["hierarchical"],
-        }
-        for cfg in cfgs
-    ])
-    for name, cfgs in MIXED_CONFIGS.items()
-}
-'''
-MIXED_COLOR_DESCRIPTORS = {}
-
-
 
 # Final lists
-
-ALL_COLOR_DESCRIPTORS = INDIVIDUAL_COLOR_DESCRIPTORS + list(MIXED_COLOR_DESCRIPTORS.values())
-ALL_COLOR_DESCRIPTORS_NAMES = INDIVIDUAL_COLOR_DESCRIPTORS_NAMES + list(MIXED_COLOR_DESCRIPTORS.keys())
+ALL_COLOR_DESCRIPTORS = INDIVIDUAL_COLOR_DESCRIPTORS
+ALL_COLOR_DESCRIPTORS_NAMES = INDIVIDUAL_COLOR_DESCRIPTORS_NAMES
 
 
 PRECOMPUTED_COLOR_DESCRIPTORS = ALL_COLOR_DESCRIPTORS
