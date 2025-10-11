@@ -60,4 +60,4 @@ def main_background_removal(img):
     cropped = img[y1:y2+1, x1:x2+1]
     
 
-    return cropped
+    return cropped, mask_1

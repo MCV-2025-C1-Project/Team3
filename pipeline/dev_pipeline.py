@@ -27,7 +27,7 @@ def compute_development_descriptors(WANTED_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_
         image_path = io_config.dev_image_path(i)
         img = cv2.imread(image_path)
         if general_config.REMOVE_BACKGROUND:
-            img = main_background_removal(img)
+            img, _ = main_background_removal(img)
         image_descriptors = [f(img, NAME_OF_DEV_SET, i, visualize=False) for f in WANTED_DESCRIPTORS]
         all_descriptors.append(image_descriptors)
     return all_descriptors
