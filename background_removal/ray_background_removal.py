@@ -2,6 +2,8 @@ import numpy as np
 import cv2
 from utils import metrics
 from numpy.typing import NDArray
+from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 def get_component_hists(img : NDArray):
     """
@@ -171,7 +173,7 @@ def line_difference_horizontal(img, start_coords : tuple, direction : tuple, thr
     
     return (current_y, current_x)
 
-def compute_vertical_line(point1 : tuple, point2 : tuple) -> function:
+def compute_vertical_line(point1 : tuple, point2 : tuple):
     """
     Computes the line function between two points considering the row axis as the base axis
     
@@ -204,7 +206,7 @@ def compute_vertical_line(point1 : tuple, point2 : tuple) -> function:
     
     return line_func
 
-def compute_horizontal_line(point1 : tuple, point2 : tuple) -> function:
+def compute_horizontal_line(point1 : tuple, point2 : tuple):
     """
     Computes the line function between two points considering the row axis as the base axis
     
@@ -368,7 +370,7 @@ def compute_bottom_side(img : NDArray, start_coords : tuple, direction : tuple, 
     
     return np.array(points)
 
-def get_vertical_func(img : NDArray, top_side : tuple, bottom_side : tuple, ray_direction : tuple, compare_median : int, shift_y : int) -> function:
+def get_vertical_func(img : NDArray, top_side : tuple, bottom_side : tuple, ray_direction : tuple, compare_median : int, shift_y : int):
     """
     Gives the function defined by a vertical border near a given median using a ray approximation
     
@@ -487,3 +489,56 @@ def get_brackground_mask(img : NDArray) -> NDArray:
     result = border_image[:, :, 0]
     
     return result
+
+
+if __name__ == "__main__":
+    score = 0
+    recall = 0
+    precision = 0
+    for i in tqdm(range(30)):
+        img = cv2.imread(f"data/qsd2_w1/{i:05d}.jpg", cv2.IMREAD_UNCHANGED)
+        correct_img = cv2.imread(f"data/qsd2_w1/{i:05d}.png", cv2.IMREAD_UNCHANGED)
+        result = get_brackground_mask(img)
+        
+        
+        TP = np.sum(correct_img & result)
+        FN = np.sum(correct_img & (255 - result))
+        FP = np.sum((255 - correct_img) & result)
+        TN = np.sum((255 - correct_img) & (255 - result))
+        
+        f, ax = plt.subplots(1, 4, figsize=(10, 8))
+        f.suptitle(f"Image {i:05d}.png")
+        plt.axis('off')
+        ax[0].imshow(correct_img & result)
+        ax[0].axis('off')
+        ax[0].set_title("True Positive")
+        
+        ax[1].imshow(correct_img & (255 - result))
+        ax[1].axis('off')
+        ax[1].set_title("False Negative")
+        
+        ax[2].imshow((255 - correct_img) & result)
+        ax[2].axis('off')
+        ax[2].set_title("False Positive")
+        
+        ax[3].imshow((255 - correct_img) & (255 - result))
+        ax[3].axis('off')
+        ax[3].set_title("True Negative")
+        
+        plt.tight_layout(rect=[0, 0, 1, 1.5])
+        
+        plt.show()
+        
+        P = TP / (TP + FP)
+        R = TP / (TP + FN)
+        F_score = 2*(P*R/(P + R))
+        
+        score = score + F_score
+        precision += P
+        recall += R
+        
+        print(f"Precision: {P}\nRecall: {R}\nF_score: {F_score}")
+        
+    print(f"Average F_score : {score/30}")
+    print(f"Average Precision : {precision/30}")
+    print(f"Average Recall : {recall/30}")

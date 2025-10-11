@@ -9,7 +9,7 @@ from config import background_removal_config, io_config
 
 
 PLOTS_DIR = io_config.MASK_DIR_ALG_X / "plots"
-MASK_OUTPUTS = MASK_DIR_ALG_X = io_config.MASKS_DIR + "predicted_masks"
+MASK_OUTPUTS = MASK_DIR_ALG_X = io_config.MASKS_DIR/"predicted_masks"
 
 MASK_OUTPUTS.mkdir(parents=True, exist_ok=True)
 if background_removal_config.SAVE_PLOTS:
@@ -20,6 +20,8 @@ def first_transition_idx(line, side="left", edge_bootstrap=10, run_window=7,
                          delta_int=20.0, consistency=7):
     """Detects the first consistent intensity transition along a 1D profile."""
     n = len(line)
+    cumsum = np.cumsum(np.insert(line, 0, 0))  # for O(1) window mean
+    win_mean = lambda i: (cumsum[i + run_window] - cumsum[i]) / run_window
     if side in ("left", "top"):
         base = np.mean(line[:edge_bootstrap])
         step_range = range(edge_bootstrap, n - run_window - consistency)
@@ -28,8 +30,6 @@ def first_transition_idx(line, side="left", edge_bootstrap=10, run_window=7,
         base = np.mean(line[-edge_bootstrap:])
         step_range = range(n - edge_bootstrap - run_window - consistency, edge_bootstrap, -1)
         direction = -1
-
-    def win_mean(i): return np.mean(line[i:i + run_window])
 
     for i in step_range:
         seq = [win_mean(i + j * direction) for j in range(consistency)]
@@ -66,13 +66,14 @@ def filter_outliers(points, axis=0, tol=20):
 def get_adaptive_channel(img_rgb):
     """Chooses between Saturation (S) or Luminance (Y) depending on S variance."""
     hsv = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2HSV)
-    ycbcr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2YCrCb)
 
     s = hsv[:, :, 1].astype(np.float32)
-    Y = ycbcr[:, :, 0].astype(np.float32)
+    
     var_s = np.var(s)
 
     if var_s < background_removal_config.VAR_THRESHOLD:
+        ycbcr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2YCrCb)
+        Y = ycbcr[:, :, 0].astype(np.float32)
         return Y.astype(np.uint8), "luminance", var_s
     else:
         return s.astype(np.uint8), "saturation", var_s
@@ -127,6 +128,28 @@ def process_image(img_rgb, param_grid):
 
 
 # MAIN LOOP
+
+param_grid = list(product(background_removal_config.EDGE_BOOTSTRAPS,
+                              background_removal_config.RUN_WINDOWS,
+                              background_removal_config.DELTA_INTS,
+                              background_removal_config.CONSISTENCIES,
+                              background_removal_config.TOLS))
+
+def run_image(img):
+
+    
+    try:
+        
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        final_mask, gray, mode, var_s, edges = process_image(img_rgb, param_grid)
+
+        return final_mask
+
+    except Exception as e:
+        print(f"Error processing {e}")
+    
+    
 
 def run_dataset(dev_dir, max_imgs=30):
     """Processes all .jpg images in a directory and saves masks & plots."""
