@@ -13,6 +13,8 @@ from utils import metrics
 from config import io_config, general_config
 from config.color_descriptors_config import DEV_COLOR_DESCRIPTORS, DEV_COLOR_DESCRIPTOR_NAMES
 from utils.common import load_precomputed_descriptors
+from background_removal.main_background_removal import main_background_removal
+import h5py
 
 
 log = logging.getLogger(__name__)
@@ -24,6 +26,8 @@ def compute_development_descriptors(WANTED_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_
     for i in tqdm(range(NUMBER_IMAGE_DEV), desc="Dev images processed: "):
         image_path = io_config.dev_image_path(i)
         img = cv2.imread(image_path)
+        if general_config.REMOVE_BACKGROUND:
+            img = main_background_removal(img)
         image_descriptors = [f(img, NAME_OF_DEV_SET, i, visualize=False) for f in WANTED_DESCRIPTORS]
         all_descriptors.append(image_descriptors)
     return all_descriptors
@@ -211,7 +215,7 @@ def run_dev():
     # For each descriptor type and distance, scan the DB file only once and update top-K heaps for every dev image
     for desc_idx, desc_name in enumerate(descriptors_names):
         log.info(f"Processing descriptor {desc_idx+1}/{len(descriptors_names)}: {desc_name}")
-        db_file_path = io_config.COLOR_DESC_DIR / f"{desc_name}.txt"
+        db_file_path = io_config.COLOR_DESC_DIR / f"{desc_name}.h5"
 
         # For each distance metric we will create per-dev heaps
         for dist_idx, dist_entry in enumerate(general_config.WANTED_DISTANCES):
@@ -222,10 +226,11 @@ def run_dev():
             heaps = [[] for _ in range(NUMBER_IMAGE_DEV)]  # each is a max-heap via (-score, db_idx)
 
             # Stream DB once
-            with open(db_file_path, "r") as fh:
-                for db_idx, line in enumerate(tqdm(fh, desc=f"Scanning DB for {desc_name} / {dist_idx}", unit="lines", leave=False)):
+            with h5py.File(db_file_path, "r") as fh:
+                dataset = fh['descriptors']
+                for db_idx, line in enumerate(tqdm(dataset, desc=f"Scanning DB for {desc_name} / {dist_idx}", unit="lines", leave=False)):
                     try:
-                        db_vec = np.fromstring(line, sep=" ")
+                        db_vec = line
                     except Exception:
                         continue
 

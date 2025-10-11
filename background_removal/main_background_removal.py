@@ -61,10 +61,3 @@ def main_background_removal(img):
     
 
     return cropped
-
-        
-        
-
-
-
-

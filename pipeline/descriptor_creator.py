@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 from config import io_config, general_config
 from tqdm import tqdm
+import h5py
 
 
 def precompute_descriptors():
@@ -30,16 +31,25 @@ def precompute_descriptors():
     for block, data in ALL_BLOCKS.items():
         data["dir"].mkdir(parents=True, exist_ok=True)
         names = [f.__name__ for f in data["descriptors"]]
-        data["files"] = [(data["dir"] / f"{name}.txt").open("w") for name in names]
+        data["files"] = [h5py.File((data["dir"] / f"{name}.h5"), 'w') for name in names]
 
+
+    image_number = io_config.count_jpgs(io_config.DB_DIR)
     # Compute
-    for i in tqdm(range(io_config.count_jpgs(io_config.DB_DIR)), desc="Precomputed images:"):
+    for i in tqdm(range(image_number), desc="Precomputed images:"):
         image_path = io_config.db_image_path(i)
         img = cv2.imread(image_path)
         for block, data in ALL_BLOCKS.items():
+            descriptors = []
             for idx, function in enumerate(data["descriptors"]):
                 descriptor = function(img, io_config.DB_NAME, i, visualize=io_config.STORE_HISTOGRAMS)
-                np.savetxt(data["files"][idx], descriptor[None])
+                if 'descriptors' not in data["files"][idx]:
+                    data['files'][idx].create_dataset('descriptors', shape=(image_number, descriptor.shape[0]),
+                                                      maxshape=(image_number, descriptor.shape[0]),
+                                                      dtype=np.float64,
+                                                      compression='gzip')
+                dataset = data["files"][idx]['descriptors']
+                dataset[i] = descriptor
 
     # Close files
     for block, data in ALL_BLOCKS.items():

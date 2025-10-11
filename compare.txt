@@ -1,0 +1,4 @@
+[36m2025-10-11 23:20:42 | INFO     | main.py:24 | Running development evaluation pipeline...[0m
+[36m2025-10-11 23:20:42 | INFO     | dev_pipeline.py:146 | Running development pipeline (streaming, memory-efficient)...[0m
+[36m2025-10-11 23:20:42 | INFO     | dev_pipeline.py:209 | Computing descriptors for all dev images (kept in memory)...[0m
+[36m2025-10-11 23:20:42 | INFO     | dev_pipeline.py:214 | Processing descriptor 1/1: hsv_H_S_V_bins180-256-256_w0.5-3.0-1.0_hier10[0m
