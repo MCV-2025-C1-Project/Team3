@@ -154,11 +154,11 @@ PREDICT_COLOR_DESCRIPTORS = [
         ranges=cfg["ranges"],
         weights=cfg["weights"]
     )
-    for cfg in [CONFIGS_BY_NAME["hsv_H_S_V_bins180-256-256_w1.0-1.0-1.0"], 
-                CONFIGS_BY_NAME["lab_L_A_B_bins256-256-256_w1.0-1.0-1.0"]]
+    for cfg in [CONFIGS_BY_NAME["hsv_H_S_V_bins20-32-32_w1.2-1.0-0.8"], 
+                CONFIGS_BY_NAME["ycbcr_Y_Cr_Cb_bins128-128-128_w0.5-3.0-1.0"]]
 ]
 
 PREDICTING_COLOR_DESCRIPTORS = [
     (PREDICT_COLOR_DESCRIPTORS[0], metrics.canberra_distance),
-    (PREDICT_COLOR_DESCRIPTORS[1], metrics.hellinger_kernel),
+    (PREDICT_COLOR_DESCRIPTORS[1], metrics.earth_movers_distance),
 ]
