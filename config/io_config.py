@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 
 # Data dir
 DB_NAME = "BBDD"
-DEV_NAME = "qsd1_w1"
+DEV_NAME = "qsd2_w2"
 TEST_NAME = "qst1_w1"
 
 DATA_DIR = BASE_DIR / "data"
