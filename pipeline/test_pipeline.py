@@ -5,6 +5,7 @@ from config import general_config
 from config import io_config
 from config.color_descriptors_config import PREDICTING_COLOR_DESCRIPTORS
 from utils.common import load_precomputed_descriptors
+from background_removal.main_background_removal import main_background_removal
 import logging
 import h5py
 
@@ -31,6 +32,10 @@ def predict_and_save_results():
         results = []
         for image in images:
             img = cv2.imread(str(image))
+            if general_config.REMOVE_BACKGROUND:
+                log.info(f"Doing background removal for image: {image}, please be patient")
+                img = main_background_removal(img)
+                log.info(f"Done")
             query_descriptor = used_descriptor(img)
 
             distances = []
@@ -45,7 +50,7 @@ def predict_and_save_results():
             results.append(top_k_idx.tolist())
 
         # save pickle
-        output_dir = io_config.RESULTS_DIR / f"method{method_idx}"
+        output_dir = io_config.RESULTS_DIR / io_config.TEST_NAME / f"method{method_idx}"
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path = output_dir / "result.pkl"
 

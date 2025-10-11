@@ -24,4 +24,4 @@ WANTED_DISTANCES = [
     metrics.canberra_distance,
 ]
 
-REMOVE_BACKGROUND = False
+REMOVE_BACKGROUND = True
