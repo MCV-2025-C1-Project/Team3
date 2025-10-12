@@ -38,7 +38,8 @@ def first_transition_idx(line, side="left", edge_bootstrap=10, run_window=7,
         step_range = range(n - edge_bootstrap - run_window - consistency, edge_bootstrap, -1)
         direction = -1
 
-    def win_mean(i): return np.mean(line[i:i + run_window])
+    cumsum = np.cumsum(np.insert(line, 0, 0))  # for O(1) window mean
+    win_mean = lambda i: (cumsum[i + run_window] - cumsum[i]) / run_window
     for i in step_range:
         seq = [win_mean(i + j * direction) for j in range(consistency)]
         if all(abs(m - base) > delta_int for m in seq):

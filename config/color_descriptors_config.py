@@ -52,9 +52,9 @@ COLOR_SPACES = {
         "channels": [["Y", "Cr", "Cb"]],
         "bins": [
             #[256, 256, 256],
-            [128, 128, 128],
-            [64, 64, 64],
-            [32,32,32],
+            #[128, 128, 128],
+            #[64, 64, 64],
+            #[32,32,32],
             [16, 16, 16],
             # [8, 8, 8],
             # [4, 4, 4],
@@ -85,7 +85,7 @@ WEIGHTS_OPTIONS = {
 }
 
 HIERARCHICAL_LEVELS = [
-    [10], [8], [7], [1, 5, 7], [5, 7], [1, 7], [8, 10]
+    [10] #[8], [7], [1, 5, 7], [5, 7], [1, 7], [8, 10]
     # [10], [9, 10], [10, 11], [9, 10, 11], [9, 10, 11, 12]
 ]
 
@@ -214,8 +214,8 @@ INDIVIDUAL_COLOR_DESCRIPTORS_3D_NAMES = [cfg["name"] for cfg in COLOR_DESCRIPTOR
 
 
 # Final lists
-ALL_COLOR_DESCRIPTORS = INDIVIDUAL_COLOR_DESCRIPTORS_2D
-ALL_COLOR_DESCRIPTORS_NAMES = INDIVIDUAL_COLOR_DESCRIPTORS_2D_NAMES
+ALL_COLOR_DESCRIPTORS = INDIVIDUAL_COLOR_DESCRIPTORS
+ALL_COLOR_DESCRIPTORS_NAMES = INDIVIDUAL_COLOR_DESCRIPTORS_NAMES
 
 
 PRECOMPUTED_COLOR_DESCRIPTORS = ALL_COLOR_DESCRIPTORS
