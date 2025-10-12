@@ -3,7 +3,7 @@ Color descriptors configuration.
 Grid search generation + named configs for clarity.
 """
 
-from itertools import product
+from itertools import product, combinations
 from descriptors.color_descriptors import color_descriptors_func as descriptors
 from utils import metrics
 
@@ -65,8 +65,16 @@ COLOR_SPACES = {
 }
 
 WEIGHTS_OPTIONS = {
-    1: [[1.0], [0.8], [1.2]],
-    2: [[1.0, 1.0], [0.8, 1.2], [1.2, 0.8]],
+    1: [
+        [1.0], 
+        [0.8], 
+        [1.2]
+    ],
+    2: [
+        #[1.0, 1.0], 
+        [0.8, 1.2], 
+        #[1.2, 0.8]
+    ],
     3: [
         # [1.0, 1.0, 1.0],
         # [1.0, 0.8, 1.2],
@@ -121,11 +129,93 @@ INDIVIDUAL_COLOR_DESCRIPTORS = [
 INDIVIDUAL_COLOR_DESCRIPTORS_NAMES = [cfg["name"] for cfg in COLOR_DESCRIPTORS_CONFIGS]
 
 
+# 2D combinations of channels
+COLOR_DESCRIPTORS_2D_CONFIGS = []
+for space, params in COLOR_SPACES.items():
+    for channels_all, bins_all, ranges_all in product(params["channels"], params["bins"], params["ranges"]):
+        # channels_all is a list like ["H","S","V"]; create all 2-channel pairs
+        if len(channels_all) < 2:
+            continue
+        # iterate over index pairs to pick corresponding bins/ranges
+        for idx_pair in combinations(range(len(channels_all)), 2):
+            pair_channels = [channels_all[i] for i in idx_pair]
+            pair_bins = [bins_all[i] for i in idx_pair]
+            pair_ranges = [ranges_all[i] for i in idx_pair]
+            for weights in WEIGHTS_OPTIONS[len(pair_channels)]:
+                for hierarchical_levels in HIERARCHICAL_LEVELS:
+                    name = f"{space}_{'_'.join(pair_channels)}_bins{'-'.join(map(str, pair_bins))}_w{'-'.join(map(str, weights))}_hier{'-'.join(map(str, hierarchical_levels))}"
+                    cfg = {
+                        "name": name,
+                        "color_space": space,
+                        "channels": pair_channels,
+                        "bins": pair_bins,
+                        "ranges": pair_ranges,
+                        "weights": weights,
+                        "hierarchical": hierarchical_levels,
+                    }
+                    COLOR_DESCRIPTORS_2D_CONFIGS.append(cfg)
+
+CONFIGS_2D_BY_NAME = {cfg["name"]: cfg for cfg in COLOR_DESCRIPTORS_2D_CONFIGS}
+
+INDIVIDUAL_COLOR_DESCRIPTORS_2D = [
+    descriptors.generic_color_descriptor_2d(
+        color_space=cfg["color_space"],
+        channels=cfg["channels"],
+        bins=cfg["bins"],
+        ranges=cfg["ranges"],
+        weights=cfg["weights"],
+        hierarchical_levels=cfg["hierarchical"]
+    )
+    for cfg in COLOR_DESCRIPTORS_2D_CONFIGS
+]
+
+INDIVIDUAL_COLOR_DESCRIPTORS_2D_NAMES = [cfg["name"] for cfg in COLOR_DESCRIPTORS_2D_CONFIGS]
+
+
+# 3D combinations of channels
+COLOR_DESCRIPTORS_3D_CONFIGS = []
+for space, params in COLOR_SPACES.items():
+    for channels, bins, ranges in product(params["channels"], params["bins"], params["ranges"]):
+        if len(channels) != 3:
+            continue
+        if len(channels) != len(ranges):
+            continue
+        for weights in WEIGHTS_OPTIONS[len(channels)]:
+            for hierarchical_levels in HIERARCHICAL_LEVELS:
+                name = f"{space}_{'_'.join(channels)}_bins{'-'.join(map(str, bins))}_w{'-'.join(map(str, weights))}_hier{'-'.join(map(str, hierarchical_levels))}"
+                cfg = {
+                    "name": name,
+                    "color_space": space,
+                    "channels": channels,
+                    "bins": bins,
+                    "ranges": ranges,
+                    "weights": weights,
+                    "hierarchical": hierarchical_levels,
+                }
+                COLOR_DESCRIPTORS_3D_CONFIGS.append(cfg)
+
+CONFIGS_3D_BY_NAME = {cfg["name"]: cfg for cfg in COLOR_DESCRIPTORS_3D_CONFIGS}
+
+INDIVIDUAL_COLOR_DESCRIPTORS_3D = [
+    descriptors.generic_color_descriptor_3d(
+        color_space=cfg["color_space"],
+        channels=cfg["channels"],
+        bins=cfg["bins"],
+        ranges=cfg["ranges"],
+        weights=cfg["weights"],
+        hierarchical_levels=cfg["hierarchical"]
+    )
+    for cfg in COLOR_DESCRIPTORS_3D_CONFIGS
+]
+
+INDIVIDUAL_COLOR_DESCRIPTORS_3D_NAMES = [cfg["name"] for cfg in COLOR_DESCRIPTORS_3D_CONFIGS]
+
+
 
 
 # Final lists
-ALL_COLOR_DESCRIPTORS = INDIVIDUAL_COLOR_DESCRIPTORS
-ALL_COLOR_DESCRIPTORS_NAMES = INDIVIDUAL_COLOR_DESCRIPTORS_NAMES
+ALL_COLOR_DESCRIPTORS = INDIVIDUAL_COLOR_DESCRIPTORS_2D
+ALL_COLOR_DESCRIPTORS_NAMES = INDIVIDUAL_COLOR_DESCRIPTORS_2D_NAMES
 
 
 PRECOMPUTED_COLOR_DESCRIPTORS = ALL_COLOR_DESCRIPTORS
