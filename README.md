@@ -54,8 +54,12 @@ Team3/
 ├── results/                          <- Generated outputs, scores, and evaluation metrics
 │   ├── histograms/                   <- Saved histogram visualizations
 │   ├── qst1_w2/
-|   ├── method1/                      <- Results for the first retrieval configuration (in the test set)
-│   │   └── result.pkl
+|       └── method1/                  
+│   │       └── result.pkl            <- Results for the first retrieval configuration (in the test set)
+|   ├── qst2_w2/
+|       └── masks/                    <- PNG files with the masks of the test images
+|       └── method1/                  
+│   │       └── result.pkl            <- Results for the first retrieval configuration (in the test set)
 │   ├── dev_scores.csv                <- Summary table with metrics for all the descriptors and distances selected
 │   ├── obtained_scores_k1.png        <- Plot showing mAP@1 performance for each descriptor-distance
 │   └── obtained_scores_k5.png        <- Plot showing mAP@5 performance for each descriptor-distance
