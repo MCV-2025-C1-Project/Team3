@@ -36,7 +36,7 @@ def component_mix(mask_1, mask_2):
     diff_mask = np.bitwise_xor(mask_1, mask_2)
     
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(diff_mask, connectivity=4)
-    areas = stats[1:, cv2.CC_STAT_AREA]  # skip background (label 0)
+    areas = stats[1:, cv2.CC_STAT_AREA] 
     
     THRESHOLD = (mask_1.shape[0] * mask_1.shape[1]) * 0.1
     
