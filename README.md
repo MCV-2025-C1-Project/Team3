@@ -39,9 +39,8 @@ Team3/
 │
 ├── results/                          <- Generated outputs, scores, and evaluation metrics
 │   ├── histograms/                   <- Saved histogram visualizations
-│   ├── method1/                      <- Results for the first retrieval configuration (in the test set)
-│   │   └── result.pkl
-│   ├── method2/                      <- Results for the second retrieval configuration (in the test set)
+│   ├── qst1_w2/
+|   ├── method1/                      <- Results for the first retrieval configuration (in the test set)
 │   │   └── result.pkl
 │   ├── dev_scores.csv                <- Summary table with metrics for all the descriptors and distances selected
 │   ├── obtained_scores_k1.png        <- Plot showing mAP@1 performance for each descriptor-distance
@@ -109,8 +108,9 @@ python main.py
 **Seeing the results**
 
 After this, you will have different outputs depending on the configurations. These can be found on:
-- results/method1/result.pkl
-- results/method2/result.pkl
+- results/qst1_w2/method1/result.pkl
+- results/qst2_w2/method1/result.pkl
+- results/qst2_w2/masks/*.png
 - results/dev_score.csv
 - results/obtained_scores_k1.png
 - results/obtained_scores_k2.png
@@ -127,6 +127,8 @@ Below is a short description of the main parameters:
 - **PRECOMPUTE**:	If True, the system computes and stores image descriptors for the database. Set to False to reuse existing precomputed descriptors.
 - **DEV_PREDICTION**:	If True, runs the validation pipeline to evaluate descriptors and metrics using the dev queries.
 - **TEST_PREDICTION**:	If True, runs the test pipeline to generate retrieval results for the test queries.
+- **REMOVE_BACKGROUND**: If True, runs the dev and test pipelines with the background removal images
+- **SAVE_BACKGROUND_MASK**: If True, when doing the test pipeline, it will also save the masks obtained for each image
 - **TOP_K_TEST**:	Number of top-ranked images retrieved for each query in the test set.
 - **K_VALUES**:	List of k values used for evaluation metrics such as mAP@1, mAP@5, etc.
 - **DESCRIPTORS**:	List of descriptor families to use (e.g., "COLOR_DESCRIPTORS", "TEXTURE_DESCRIPTORS", etc.).
