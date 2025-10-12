@@ -154,8 +154,6 @@ Below is a short description of the main parameters:
 - **K_VALUES**:	List of k values used for evaluation metrics such as mAP@1, mAP@5, etc.
 - **DESCRIPTORS**:	List of descriptor families to use (e.g., "COLOR_DESCRIPTORS", "TEXTURE_DESCRIPTORS", etc.).
 - **WANTED_DISTANCES**:	List of distance or similarity functions used to compare descriptors.
-- **REMOVE_BACKGROUND**: Enable or disable background removal before descriptor extraction.
-- **SAVE_BACKGROUND_MASK**: Save the generated background masks for inspection or reuse.
 
 **IO Config File**
 
