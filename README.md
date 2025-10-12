@@ -18,20 +18,34 @@ Team3/
 │   ├── color_descriptors_config.py   <- Defines descriptor search space, grid configs, and mixed setups
 │   ├── general_config.py             <- Global parameters to control the entire pipeline
 │   └── io_config.py                  <- Input/output paths and directory structure used across modules
+│   └── background_removal_config.py  <- Hyperparameters to control the algorithm
 │
 ├── data/                             <- Datasets used for development, testing, and retrieval evaluation
 │   ├── BBDD/                         <- Image database used as retrieval reference
 │   ├── qsd1_w1/                      <- Query set for development phase
 │   └── qst1_w1/                      <- Query set for testing phase
+│   └── qsd2_w2/                      <- Query set for testing phase
+│   └── qst1_w2/                      <- Query set for testing phase
+│   └── qst2_w2/                      <- Query set for testing phase
+|
+├── background_removal/                    <- Background removal
+│   ├── __pycache__/
+│   ├── main_background_removal.py         <- Main algorithm with metrics calculation
+│   ├── ensemble_background_removal.py     <- Ensemble version with majority voting and plotting
+│   └── ray_background_removal.py          <- (Optional) Parallel version using Ray
+│
 │
 ├── descriptors/                      <- Feature extraction modules
 │   └── color_descriptors/            <- Implementation of color descriptors
 │       ├── color_descriptors_func.py <- Functions to compute color descriptors and store histograms
 │       └── stored_color_descriptors/ <- Precomputed descriptors saved as .txt files
 │
-├── exploratory_analysis/             <- Exploratory notebooks and visual analyses
-│   └── dataset_analysis.ipynb        <- Sample visualizations
-│
+├── exploratory_analysis/                           <- Exploratory notebooks and visual analyses
+│   └── dataset_analysis.ipynb                      <- Sample visualizations
+│   └── experiments_background_removal.ipynb        <- Experiments for the background removal
+│   └── boundary.ipynb                              <- More experiments for the background removal
+│   └── hierarchical_analysis.ipynb                 <- Experiments with the hierarchical block histograms
+|
 ├── pipeline/                         <- Core pipeline scripts for descriptor computation and evaluation
 │   ├── descriptor_creator.py         <- Generates and stores descriptors for all datasets
 │   ├── dev_pipeline.py               <- Runs evaluation over development queries
@@ -94,6 +108,9 @@ data/
 ├── BBDD/
 ├── qsd1_w1/
 └── qst1_w1/
+└── qsd2_w2/
+└── qst1_w2/
+└── qst2_w2/
 ```
 
 If the folder names are different, they should be updated accordingly in io_config.py.
@@ -133,6 +150,8 @@ Below is a short description of the main parameters:
 - **K_VALUES**:	List of k values used for evaluation metrics such as mAP@1, mAP@5, etc.
 - **DESCRIPTORS**:	List of descriptor families to use (e.g., "COLOR_DESCRIPTORS", "TEXTURE_DESCRIPTORS", etc.).
 - **WANTED_DISTANCES**:	List of distance or similarity functions used to compare descriptors.
+- **REMOVE_BACKGROUND**: Enable or disable background removal before descriptor extraction.
+- **SAVE_BACKGROUND_MASK**: Save the generated background masks for inspection or reuse.
 
 **IO Config File**
 
@@ -142,20 +161,26 @@ However, there are two parameters that are relevant for the user when running ex
 - **STORE_HISTOGRAMS**: If True, histogram visualizations for each image descriptor are generated and stored.
 - **STORE_RESULTS_TXT_BY_DESCRIPTOR**: If True, a .txt file is generated for each descriptor, showing the top-5 most relevant retrieved images for every development query, along with their comparison to the ground truth. This option is useful for debugging and understanding retrieval behavior.
 
-**Color Descriptors Config File**
+**Color Descriptors Configuration File**
 
-This file defines all color descriptor configurations.
-This configuration file is responsible for:
+This module defines all configurations related to **color-based descriptors**.
+It handles the creation of descriptor variants through grid search and the
+selection of specific configurations for development and prediction stages.
 
-- Defining search spaces for color descriptors (color spaces, channels, bin sizes, and value ranges).
+The configuration file is responsible for:
 
-- Generating multiple descriptor configurations automatically using grid search.
+- Defining search spaces for color descriptors (color spaces, channels, bin sizes, and value ranges).  
+- Automatically generating multiple descriptor configurations using grid search.  
+- Creating combined or hierarchical descriptors (e.g., 2D or 3D channel combinations).  
+- Selecting which descriptors to use in the precomputation, development, and test stages.  
+  (During the test stage, only a few selected descriptor–distance pairs are evaluated.)
 
-- Combining multiple descriptors into mixed configurations (e.g., HSV + Lab).
+**Naming Convention:**  
+`<color_space>_<channels>_bins<bin_values>_w<weights>_hier<hierarchical_levels>`
 
-- Selecting which descriptors to use in the precompute stage, evaluation stage and test stage (in the test stage only two methods should be added definig the name of the descriuptor + distance to use).
+Example:  
+`ycbcr_Y_Cr_Cb_bins128-128-128_w0.5-3.0-1.0_hier1-5-7`
 
-It is important to note that the name convention is: <color_space>_<channels>_bins<bin_values>_w<weights>
 
 
 ## Contact
