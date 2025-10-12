@@ -39,6 +39,7 @@ def precompute_descriptors():
     for i in tqdm(range(image_number), desc="Precomputed images:"):
         image_path = io_config.db_image_path(i)
         img = cv2.imread(image_path)
+        img = cv2.resize(img, (256, 256))
         for block, data in ALL_BLOCKS.items():
             descriptors = []
             for idx, function in enumerate(data["descriptors"]):

@@ -61,3 +61,37 @@ def main_background_removal(img):
     
 
     return cropped, mask_1
+
+if __name__ ==  "__main__":
+
+    precision = 0
+    recall = 0
+    score = 0
+
+    for i in tqdm(range(NUMBER_IMAGE_DEV), desc="Dev images processed: "):
+        image_path = io_config.dev_image_path(i)
+        img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+        _, final_mask = main_background_removal(img)
+
+        # Metrics
+        image_path = image_path.with_suffix(".png")
+        mask_img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+
+        TP = np.sum(mask_img & final_mask)
+        FN = np.sum(mask_img & (255 - final_mask))
+        FP = np.sum((255 - mask_img) & final_mask)
+        TN = np.sum((255 - mask_img) & (255 - final_mask))
+    
+        P = TP / (TP + FP)
+        R = TP / (TP + FN)
+        F_score = 2*(P*R/(P + R))
+
+        score = score + F_score
+        precision += P
+        recall += R
+
+        print(f"Precision: {P:.4f}\nRecall: {R:.4f}\nF_score: {F_score:.4f}")
+    
+    print(f"Average F_score : {(score/NUMBER_IMAGE_DEV):.4f}")
+    print(f"Average Precision : {(precision/NUMBER_IMAGE_DEV):.4f}")
+    print(f"Average Recall : {(recall/NUMBER_IMAGE_DEV):.4f}")
