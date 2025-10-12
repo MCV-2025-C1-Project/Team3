@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 
 # Data dir
 DB_NAME = "BBDD"
-DEV_NAME = "qsd2_w2"
+DEV_NAME = "qsd1_w1"
 TEST_NAME = "qst1_w1"
 
 DATA_DIR = BASE_DIR / "data"
@@ -19,7 +19,7 @@ TEST_DIR = DATA_DIR / TEST_NAME
 # Outputs
 RESULTS_DIR = BASE_DIR / "results"
 MASKS_DIR = BASE_DIR/"background_removal"
-MASK_DIR_ALG_X = MASKS_DIR + "/outputs_algorithm_x"
+MASK_DIR_ALG_X = MASKS_DIR/"/outputs_algorithm_x"
 
 DESCRIPTORS_DIR = BASE_DIR / "descriptors"
 COLOR_DESC_DIR  = DESCRIPTORS_DIR / "color_descriptors/stored_color_descriptors"
