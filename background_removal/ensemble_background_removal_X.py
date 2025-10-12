@@ -8,9 +8,6 @@ from sklearn.linear_model import LinearRegression
 from config import background_removal_config, io_config
 
 
-# ===============================================
-# CONFIGURATION — Paths and Directories
-# ===============================================
 BASE_MASK_DIR = io_config.MASKS_DIR / "predicted_masks"
 ENSEMBLE_DIR = BASE_MASK_DIR / "ensemble_masks"
 PLOTS_DIR = BASE_MASK_DIR / "plots"
@@ -23,9 +20,6 @@ if background_removal_config.SAVE_PLOTS:
 COLORS = {"left": "cyan", "right": "red", "top": "lime", "bottom": "magenta"}
 
 
-# ===============================================
-# BASIC FUNCTIONS
-# ===============================================
 def first_transition_idx(line, side="left", edge_bootstrap=10, run_window=7,
                          delta_int=20.0, consistency=7):
     """
@@ -138,9 +132,6 @@ def intersect_ABCs(L1, L2):
     return int(round(x)), int(round(y))
 
 
-# ===============================================
-# 🧩 CORE FUNCTION — PROCESS ONE IMAGE
-# ===============================================
 def process_image(img_rgb, delta_int):
     """
     Main processing pipeline for a single image and intensity threshold (ΔI).
@@ -217,5 +208,5 @@ def run_image(img):
         return ensemble_mask
 
     except Exception as e:
-        print(f"⚠️ Error processing image: {e}")
+        print(f"Error processing image: {e}")
         return None
