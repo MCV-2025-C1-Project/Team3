@@ -123,7 +123,9 @@ def generic_color_descriptor(color_space: str,
                        bins: list[int],
                        ranges: list[tuple[int, int]],
                        weights: list[float],
-                       hierarchical_levels: list[int]):
+                       hierarchical_levels: list[int],
+                       denoising_method: str = "none",
+                       denoising_kernel_size: int = 3):
     """
     Factory function that creates a descriptor function from a given configuration.
 
@@ -159,6 +161,15 @@ def generic_color_descriptor(color_space: str,
             converted = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
         else:
             raise ValueError(f"Unsupported color space: {color_space}")
+        
+        # Apply denoising if specified
+        if denoising_method == "gaussian":
+            converted = cv2.GaussianBlur(converted, (denoising_kernel_size, denoising_kernel_size), 0)
+        elif denoising_method == "median":
+            converted = cv2.medianBlur(converted, denoising_kernel_size)
+        elif denoising_method == "bilateral":
+            converted = cv2.bilateralFilter(converted, d=denoising_kernel_size, sigmaColor=75, sigmaSpace=75)
+
 
         if color_space == "gray":
             channel_imgs = [converted]
