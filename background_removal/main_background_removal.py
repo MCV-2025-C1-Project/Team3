@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from tqdm import tqdm
 from config import background_removal_config, io_config
-from background_removal.ensemble_background_removal_X import run_image
+from background_removal.removal_v2 import run_image_v2
 from background_removal.ray_background_removal import get_brackground_mask
 import matplotlib.pyplot as plt
 
@@ -51,7 +51,7 @@ def component_mix(mask_1, mask_2):
     
 
 def main_background_removal(img):
-    mask_1 = run_image(img)
+    mask_1 = run_image_v2(img)
     #mask_2 = get_brackground_mask(img)
     
     ys, xs = np.where(mask_1 > 0)
