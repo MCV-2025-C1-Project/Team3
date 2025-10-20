@@ -209,7 +209,7 @@ def run_image_v2(img):
 
         # "Median mask ensemble"
         stack = np.stack(all_masks, axis=0).astype(np.float32)
-        avg_mask = np.mean(stack, axis=0)  # pixel-wise average
+        avg_mask = np.mean(stack, axis=0)
 
         # Compute total white area (number of white pixels) per mask
         areas = [np.sum(m > 127) for m in all_masks]
