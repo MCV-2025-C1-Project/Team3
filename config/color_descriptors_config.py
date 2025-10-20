@@ -31,25 +31,25 @@ COLOR_SPACES = {
     #    "ranges": [[(0, 256)] * 3],
     #},
     
-    "hsv": {
-        "channels": [["H", "S", "V"]],
-        "bins": [
-            [180, 256, 256],   
-            #[90, 128, 128],    
-            #[45, 64, 64],
-            #[20,32,32],
-            #[10,16,16]    
-        ],
-        "ranges": [[(0, 180), (0, 256), (0, 256)]],
-    },
+    #"hsv": {
+    #    "channels": [["H", "S", "V"]],
+    #    "bins": [
+    #        [180, 256, 256],   
+    #        #[90, 128, 128],    
+    #        #[45, 64, 64],
+    #        #[20,32,32],
+    #        #[10,16,16]    
+    #    ],
+    #    "ranges": [[(0, 180), (0, 256), (0, 256)]],
+    #},
     "ycbcr": {
         "channels": [["Y", "Cr", "Cb"]],
         "bins": [
-            [256, 256, 256],
+            #[256, 256, 256],
             #[128, 128, 128],
             #[64, 64, 64],
             #[32,32,32],
-            #[16,16,16]
+            [16,16,16]
         ],
         "ranges": [[(0, 256)] * 3],
     },
@@ -76,7 +76,7 @@ WEIGHTS_OPTIONS = {
 }
 
 HIERARCHICAL_LEVELS = [
-    [1], [2], [3], [4], [1,2], [2,3], [1,3], [1,2,3]
+    [10],
 ]
 
 DENOISING_METHODS = [
@@ -84,7 +84,7 @@ DENOISING_METHODS = [
 ]
 
 DENOISING_KERNEL_SIZES = [
-    3, 5, 7
+    [3], [5], [7]
 ]
 
 
@@ -282,8 +282,8 @@ INDIVIDUAL_COLOR_DESCRIPTORS_3D_NAMES = [cfg["name"] for cfg in COLOR_DESCRIPTOR
 
 
 # Final lists
-ALL_COLOR_DESCRIPTORS = INDIVIDUAL_COLOR_DESCRIPTORS_2D
-ALL_COLOR_DESCRIPTORS_NAMES = INDIVIDUAL_COLOR_DESCRIPTORS_2D_NAMES
+ALL_COLOR_DESCRIPTORS = INDIVIDUAL_COLOR_DESCRIPTORS
+ALL_COLOR_DESCRIPTORS_NAMES = INDIVIDUAL_COLOR_DESCRIPTORS_NAMES
 
 
 PRECOMPUTED_COLOR_DESCRIPTORS = ALL_COLOR_DESCRIPTORS
