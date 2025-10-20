@@ -2,24 +2,33 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from itertools import product
-from tqdm import tqdm
 from pathlib import Path
+from tqdm import tqdm
+from sklearn.linear_model import LinearRegression
 from config import background_removal_config, io_config
 
 
+BASE_MASK_DIR = io_config.MASKS_DIR / "predicted_masks"
+ENSEMBLE_DIR = BASE_MASK_DIR / "ensemble_masks"
+PLOTS_DIR = BASE_MASK_DIR / "plots"
 
-PLOTS_DIR = io_config.MASK_DIR_ALG_X / "plots"
-MASK_OUTPUTS = MASK_DIR_ALG_X = io_config.MASKS_DIR + "predicted_masks"
-
-MASK_OUTPUTS.mkdir(parents=True, exist_ok=True)
+BASE_MASK_DIR.mkdir(parents=True, exist_ok=True)
+ENSEMBLE_DIR.mkdir(parents=True, exist_ok=True)
 if background_removal_config.SAVE_PLOTS:
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
+
+COLORS = {"left": "cyan", "right": "red", "top": "lime", "bottom": "magenta"}
 
 
 def first_transition_idx(line, side="left", edge_bootstrap=10, run_window=7,
                          delta_int=20.0, consistency=7):
-    """Detects the first consistent intensity transition along a 1D profile."""
+    """
+    Detects the first strong and consistent intensity transition along a 1D signal.
+    This defines where the frame border starts from each scanning direction.
+    """
     n = len(line)
+    if n <= edge_bootstrap + run_window + consistency:
+        return None
     if side in ("left", "top"):
         base = np.mean(line[:edge_bootstrap])
         step_range = range(edge_bootstrap, n - run_window - consistency)
@@ -29,8 +38,8 @@ def first_transition_idx(line, side="left", edge_bootstrap=10, run_window=7,
         step_range = range(n - edge_bootstrap - run_window - consistency, edge_bootstrap, -1)
         direction = -1
 
-    def win_mean(i): return np.mean(line[i:i + run_window])
-
+    cumsum = np.cumsum(np.insert(line, 0, 0))  # for O(1) window mean
+    win_mean = lambda i: (cumsum[i + run_window] - cumsum[i]) / run_window
     for i in step_range:
         seq = [win_mean(i + j * direction) for j in range(consistency)]
         if all(abs(m - base) > delta_int for m in seq):
@@ -39,7 +48,10 @@ def first_transition_idx(line, side="left", edge_bootstrap=10, run_window=7,
 
 
 def detect_edge_points(gray, direction="left", step=2, **params):
-    """Scans image lines (horizontal/vertical) and collects edge points."""
+    """
+    Scans horizontal or vertical lines to detect the first border transition points.
+    Returns a list of (x, y) coordinates for each detected edge position.
+    """
     H, W = gray.shape
     pts = []
     if direction in ("left", "right"):
@@ -52,142 +64,150 @@ def detect_edge_points(gray, direction="left", step=2, **params):
             idx = first_transition_idx(gray[:, x], side=direction, **params)
             if idx is not None:
                 pts.append((x, idx))
-    return np.array(pts, dtype=float)
+    return np.array(pts, dtype=float) if len(pts) else np.empty((0, 2))
 
 
 def filter_outliers(points, axis=0, tol=20):
-    """Filters points beyond ±tol from median along chosen axis."""
+    """
+    Removes points that deviate too far (±tol) from the median value along the chosen axis.
+    Helps remove noisy edge detections caused by lighting or texture variation.
+    """
     if points.size == 0:
         return points
     med = np.median(points[:, axis])
-    return points[np.abs(points[:, axis] - med) < tol]
+    kept = points[np.abs(points[:, axis] - med) < tol]
+    return kept if kept.size else points
 
 
 def get_adaptive_channel(img_rgb):
-    """Chooses between Saturation (S) or Luminance (Y) depending on S variance."""
+    """
+    Chooses between using the Saturation (S) channel or the Luminance (Y)
+    channel depending on the variance of saturation.
+    If the scene has low color variation (low var(S)), luminance is used instead.
+    """
     hsv = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2HSV)
     ycbcr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2YCrCb)
-
     s = hsv[:, :, 1].astype(np.float32)
     Y = ycbcr[:, :, 0].astype(np.float32)
     var_s = np.var(s)
-
     if var_s < background_removal_config.VAR_THRESHOLD:
         return Y.astype(np.uint8), "luminance", var_s
     else:
         return s.astype(np.uint8), "saturation", var_s
 
 
-def process_image(img_rgb, param_grid):
-    """Performs edge detection and builds the final mask through majority voting."""
+def fit_linear_line(points, side):
+    """
+    Fits a linear regression model (y = m*x + b) for each side of the frame,
+    converts it to the normalized line equation Ax + By + C = 0.
+    """
+    if points.size < 2:
+        return None
+    if side in ("left", "right"):
+        X = points[:, 1].reshape(-1, 1)
+        y = points[:, 0]
+    else:
+        X = points[:, 0].reshape(-1, 1)
+        y = points[:, 1]
+    lr = LinearRegression().fit(X, y)
+    m, b = float(lr.coef_[0]), float(lr.intercept_)
+    if side in ("left", "right"):
+        A, B, C = 1.0, -m, -b
+    else:
+        A, B, C = -m, 1.0, -b
+    norm = np.hypot(A, B)
+    return (A / norm, B / norm, C / norm)
+
+
+def intersect_ABCs(L1, L2):
+    """Computes the intersection between two lines given as (A,B,C) coefficients."""
+    if L1 is None or L2 is None:
+        return None
+    A1, B1, C1 = L1
+    A2, B2, C2 = L2
+    M = np.array([[A1, B1], [A2, B2]], dtype=float)
+    rhs = -np.array([C1, C2], dtype=float)
+    if abs(np.linalg.det(M)) < 1e-8:
+        return None
+    x, y = np.linalg.solve(M, rhs)
+    return int(round(x)), int(round(y))
+
+
+def process_image(img_rgb, delta_int):
+    """
+    Main processing pipeline for a single image and intensity threshold (ΔI).
+    Detects edges per side, fits regression lines, computes intersections,
+    and generates a binary mask covering the detected frame region.
+    """
     gray, mode, var_s = get_adaptive_channel(img_rgb)
-    H, W = gray.shape
-    accum_mask = np.zeros((H, W), np.uint16)
-    collected_edges = None
 
+    param_grid = list(product(
+        background_removal_config.EDGE_BOOTSTRAPS,
+        background_removal_config.RUN_WINDOWS,
+        [delta_int],
+        background_removal_config.CONSISTENCIES,
+        background_removal_config.TOLS
+    ))
+
+    # Collect edge points for each side
+    pts_side = {k: [] for k in ["left", "right", "top", "bottom"]}
     for (edge_bootstrap, run_window, delta_int, consistency, tol) in param_grid:
-        edges_raw = {
-            "left": detect_edge_points(gray, "left", step=background_removal_config.SCAN_STEP,
-                                       edge_bootstrap=edge_bootstrap, run_window=run_window,
-                                       delta_int=delta_int, consistency=consistency),
-            "right": detect_edge_points(gray, "right", step=background_removal_config.SCAN_STEP,
-                                        edge_bootstrap=edge_bootstrap, run_window=run_window,
-                                        delta_int=delta_int, consistency=consistency),
-            "top": detect_edge_points(gray, "top", step=background_removal_config.SCAN_STEP,
-                                      edge_bootstrap=edge_bootstrap, run_window=run_window,
-                                      delta_int=delta_int, consistency=consistency),
-            "bottom": detect_edge_points(gray, "bottom", step=background_removal_config.SCAN_STEP,
-                                         edge_bootstrap=edge_bootstrap, run_window=run_window,
-                                         delta_int=delta_int, consistency=consistency),
-        }
+        for side in pts_side.keys():
+            pts = detect_edge_points(
+                gray, side, step=background_removal_config.SCAN_STEP,
+                edge_bootstrap=edge_bootstrap,
+                run_window=run_window,
+                delta_int=delta_int,
+                consistency=consistency
+            )
+            if pts.size:
+                axis = 0 if side in ("left", "right") else 1
+                pts = filter_outliers(pts, axis=axis, tol=tol)
+                if pts.size:
+                    pts_side[side].append(pts)
 
-        if collected_edges is None:
-            collected_edges = edges_raw
+    pts_side = {k: np.vstack(v) if len(v) else np.empty((0, 2)) for k, v in pts_side.items()}
 
-        edges = {
-            k: filter_outliers(v, axis=(0 if k in ["left", "right"] else 1), tol=tol)
-            for k, v in edges_raw.items()
-        }
+    # Fit regression lines and find their intersections
+    lines = {side: fit_linear_line(pts_side[side], side) for side in ["left", "right", "top", "bottom"]}
+    tl = intersect_ABCs(lines["left"], lines["top"])
+    tr = intersect_ABCs(lines["right"], lines["top"])
+    br = intersect_ABCs(lines["right"], lines["bottom"])
+    bl = intersect_ABCs(lines["left"], lines["bottom"])
+    corners = [tl, tr, br, bl]
 
-        left_x = int(np.median(edges["left"][:, 0])) if edges["left"].size else 0
-        right_x = int(np.median(edges["right"][:, 0])) if edges["right"].size else W - 1
-        top_y = int(np.median(edges["top"][:, 1])) if edges["top"].size else 0
-        bottom_y = int(np.median(edges["bottom"][:, 1])) if edges["bottom"].size else H - 1
+    # Build binary mask
+    H, W, _ = img_rgb.shape
+    mask = np.zeros((H, W), np.uint8)
+    if all(c is not None for c in corners):
+        poly = np.array(corners, dtype=np.int32)
+        cv2.fillPoly(mask, [poly], 255)
 
-        right_x, bottom_y = max(right_x, left_x + 1), max(bottom_y, top_y + 1)
-
-        mask = np.zeros((H, W), np.uint8)
-        mask[top_y:bottom_y, left_x:right_x] = 1
-        accum_mask += mask
-
-    threshold_votes = int(len(param_grid) * 0.5)
-    final_mask = np.where(accum_mask >= threshold_votes, 255, 0).astype(np.uint8)
-
-    return final_mask, gray, mode, var_s, collected_edges
+    return mask, gray, mode, var_s, pts_side, lines, corners
 
 
-# MAIN LOOP
+def run_image(img):
+    """
+    Runs the full frame edge detection pipeline on a single image.
+    It processes the image for all ΔI values and returns the ensemble mask
+    built via majority voting across all thresholds.
+    """
+    try:
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        all_masks = []
 
-def run_dataset(dev_dir, max_imgs=30):
-    """Processes all .jpg images in a directory and saves masks & plots."""
-    db_images = sorted([p for p in Path(dev_dir).iterdir() if p.suffix.lower() == ".jpg"])
-    n_imgs = min(max_imgs, len(db_images))
-    param_grid = list(product(background_removal_config.EDGE_BOOTSTRAPS,
-                              background_removal_config.RUN_WINDOWS,
-                              background_removal_config.DELTA_INTS,
-                              background_removal_config.CONSISTENCIES,
-                              background_removal_config.TOLS))
+        # Process one mask per ΔI
+        for delta_int in background_removal_config.DELTA_INTS:
+            mask, _, _, _, _, _, _ = process_image(img_rgb, delta_int)
+            all_masks.append(mask)
 
-    for img_path in tqdm(db_images[:n_imgs], desc="Processing images"):
-        try:
-            img = cv2.imread(str(img_path))
-            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # Majority voting (ensemble)
+        stack = np.stack(all_masks, axis=0)
+        votes = np.sum(stack > 127, axis=0)
+        ensemble_mask = np.where(votes >= len(all_masks) / 2, 255, 0).astype(np.uint8)
 
-            final_mask, gray, mode, var_s, edges = process_image(img_rgb, param_grid)
+        return ensemble_mask
 
-            # save masks
-            mask_name = MASK_OUTPUTS / f"{img_path.stem}.png"
-            cv2.imwrite(str(mask_name), final_mask)
-
-            # plots
-            if background_removal_config.SAVE_PLOTS:
-                fig, axs = plt.subplots(1, 3, figsize=(16, 5))
-                plt.suptitle(f"{img_path.name} | Mode: {mode} | Var(S)={var_s:.1f}",
-                             fontsize=11, fontweight="bold")
-
-                # Original + Detected Edges
-                axs[0].imshow(img_rgb)
-                axs[0].set_title("Original + Detected Edges")
-                axs[0].axis("off")
-
-                if edges:
-                    color_map = {"left": "cyan", "right": "red", "top": "lime", "bottom": "magenta"}
-                    for k, c in color_map.items():
-                        if edges[k].size:
-                            axs[0].scatter(edges[k][:, 0], edges[k][:, 1],
-                                           s=10, c=c, label=k, alpha=0.8)
-                    axs[0].legend(loc="lower right", fontsize=8)
-
-                # Channel Used
-                axs[1].imshow(gray, cmap="gray")
-                axs[1].set_title(f"{mode.capitalize()} channel")
-                axs[1].axis("off")
-
-                # Final Mask
-                axs[2].imshow(final_mask, cmap="gray")
-                axs[2].set_title("Final Mask (Majority Vote)")
-                axs[2].axis("off")
-
-                plt.tight_layout()
-
-                plot_name = PLOTS_DIR / f"{img_path.stem}_plot.png"
-                plt.savefig(plot_name, dpi=150, bbox_inches="tight")
-                plt.close(fig)
-            else:
-                plt.show()
-
-            print(f"Saved mask alg X: {mask_name.name}")
-
-        except Exception as e:
-            print(f"Error processing {img_path.name}: {e}")
-
+    except Exception as e:
+        print(f"Error processing image: {e}")
+        return None

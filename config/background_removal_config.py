@@ -17,7 +17,8 @@ RUN_WINDOWS = [2]
 # Minimum required intensity difference (ΔI) between the baseline
 # and a local window to consider it a valid edge transition.
 # Larger values → only strong edges are detected.
-DELTA_INTS = [35, 40, 45, 50, 55, 60, 65, 70]
+DELTA_INTS = [50]
+#DELTA_INTS = [35, 40, 45, 50, 55, 60, 65, 70]
 
 # Number of consecutive windows that must confirm the same transition
 # for it to be accepted as a valid edge (stability parameter).
@@ -30,7 +31,9 @@ TOLS = [15]
 # Variance threshold of the saturation channel.
 # If var(S) < VAR_THRESHOLD, the algorithm switches to the luminance channel (Y)
 # because the image is too uniform in color to rely on saturation.
-VAR_THRESHOLD = 480.0
+VAR_THRESHOLD = 650
+
+G_THRESHOLDS = [50,60,70,80,90,100,110,120,130,140,150,160,170,180,190]
 
 SAVE_PLOTS = True
 

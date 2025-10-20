@@ -5,7 +5,10 @@ from config import general_config
 from config import io_config
 from config.color_descriptors_config import PREDICTING_COLOR_DESCRIPTORS
 from utils.common import load_precomputed_descriptors
+from background_removal.main_background_removal import main_background_removal
 import logging
+import h5py
+import matplotlib.pyplot as plt
 
 log = logging.getLogger(__name__)
 
@@ -21,15 +24,24 @@ def predict_and_save_results():
     images = sorted([p for p in io_config.TEST_DIR.iterdir() if p.suffix.lower() == ".jpg"])
 
     descriptors_names = [f[0].__name__ for f in PREDICTING_COLOR_DESCRIPTORS]
-    files = [(io_config.COLOR_DESC_DIR / f"{name}.txt").open("r") for name in descriptors_names]
+    files = [h5py.File(io_config.COLOR_DESC_DIR / f"{name}.h5", 'r') for name in descriptors_names]
     precomputed_descriptors = load_precomputed_descriptors(files)
 
     for method_idx, (used_descriptor, used_distance) in enumerate(PREDICTING_COLOR_DESCRIPTORS, start=1):
         log.info(f"Running prediction for method {method_idx}: {used_descriptor.__name__} + {used_distance.__name__}")
 
+        output_dir = io_config.RESULTS_DIR / io_config.TEST_NAME / f"masks"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
         results = []
         for image in images:
             img = cv2.imread(str(image))
+            if general_config.REMOVE_BACKGROUND:
+                log.info(f"Doing background removal for image: {image.name}, please be patient")
+                img, mask = main_background_removal(img)
+                if general_config.SAVE_BACKGROUND_MASK:
+                    cv2.imwrite(output_dir / f"{image.with_suffix(".png").name}", mask)
+                log.info(f"Done")
             query_descriptor = used_descriptor(img)
 
             distances = []
@@ -44,7 +56,7 @@ def predict_and_save_results():
             results.append(top_k_idx.tolist())
 
         # save pickle
-        output_dir = io_config.RESULTS_DIR / f"method{method_idx}"
+        output_dir = io_config.RESULTS_DIR / io_config.TEST_NAME / f"method{method_idx}"
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path = output_dir / "result.pkl"
 
