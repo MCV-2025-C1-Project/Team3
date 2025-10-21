@@ -6,6 +6,7 @@ from pathlib import Path
 from tqdm import tqdm
 from sklearn.linear_model import LinearRegression
 from config import background_removal_config, io_config
+from scipy.ndimage import gaussian_filter
 
 BASE_MASK_DIR = io_config.MASKS_DIR / "predicted_masks"
 ENSEMBLE_DIR = BASE_MASK_DIR / "ensemble_masks"
@@ -121,7 +122,7 @@ def retinex_shadow_removal(img_rgb, blur_kernel=51):
     - Divides the original image by the illumination estimate.
     """
     img_float = img_rgb.astype(np.float32) / 255.0
-    illumination = cv2.GaussianBlur(img_float, (blur_kernel, blur_kernel), 0)
+    illumination = gaussian_filter(img_float, sigma=blur_kernel/6)
     illumination = np.clip(illumination, 1e-3, 1.0)
     corrected = img_float / illumination
     corrected = np.clip(corrected / np.max(corrected), 0, 1)
@@ -129,7 +130,7 @@ def retinex_shadow_removal(img_rgb, blur_kernel=51):
 
 
 
-def process_image(img_rgb, threshold):
+def process_image(grad_mag, threshold):
     """
     Processes a single RGB image for a given gradient threshold.
     Steps:
@@ -140,15 +141,7 @@ def process_image(img_rgb, threshold):
       5. Fit lines and compute intersections.
       6. Build mask polygon.
     """
-    img_rgb = retinex_shadow_removal(img_rgb)
-
-    img_hsv = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2HSV)
-    h, s, v = cv2.split(img_hsv)
-
-    grad_x = cv2.Sobel(s, cv2.CV_64F, 1, 0, ksize=3)
-    grad_y = cv2.Sobel(s, cv2.CV_64F, 0, 1, ksize=3)
-    grad_mag = cv2.magnitude(grad_x, grad_y)
-    grad_mag = cv2.convertScaleAbs(grad_mag)
+    
 
     _, binary = cv2.threshold(grad_mag, threshold, 255, cv2.THRESH_BINARY)
     binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
@@ -181,11 +174,22 @@ def run_image_v2(img):
     based on interpolated averaging with median area thresholding.
     """
     try:
+        
+        #Putted out of the function to compute only once
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         all_masks = []
+        img_rgb = retinex_shadow_removal(img_rgb)
+
+        img_hsv = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2HSV)
+        h, s, v = cv2.split(img_hsv)
+
+        grad_x = cv2.Sobel(s, cv2.CV_64F, 1, 0, ksize=3)
+        grad_y = cv2.Sobel(s, cv2.CV_64F, 0, 1, ksize=3)
+        grad_mag = cv2.magnitude(grad_x, grad_y)
+        grad_mag = cv2.convertScaleAbs(grad_mag)
 
         for threshold in background_removal_config.G_THRESHOLDS:
-            mask, grad, binary, corners = process_image(img_rgb, threshold)
+            mask, grad, binary, corners = process_image(grad_mag, threshold)
             all_masks.append(mask)
 
             if background_removal_config.SAVE_PLOTS:

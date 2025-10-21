@@ -49,7 +49,6 @@ def component_mix(mask_1, mask_2):
     
     return result_mask
     
-
 def main_background_removal(img):
     mask_1 = run_image_v2(img)
     #mask_2 = get_brackground_mask(img)
@@ -62,36 +61,89 @@ def main_background_removal(img):
 
     return cropped, mask_1
 
-if __name__ ==  "__main__":
+def compute_grad_magnitude(img):
+    grad_x = cv2.Sobel(img, ddepth=cv2.CV_64F, dx=1, dy=0)
+    grad_y = cv2.Sobel(img, ddepth=cv2.CV_64F, dx=0, dy=1)
+    grad_module = cv2.magnitude(grad_x, grad_y)
+    return np.uint8(grad_module)
 
-    precision = 0
-    recall = 0
-    score = 0
+def get_discriminative_mask(img):
+    hsv_image = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-    for i in tqdm(range(NUMBER_IMAGE_DEV), desc="Dev images processed: "):
-        image_path = io_config.dev_image_path(i)
-        img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
-        _, final_mask = main_background_removal(img)
+    h, s, v = cv2.split(hsv_image)
+    edges_s = compute_grad_magnitude(s)
 
-        # Metrics
-        image_path = image_path.with_suffix(".png")
-        mask_img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+    mask_s = edges_s
+    mask_s[mask_s < 75] = 0
+    mask_s[mask_s != 0] = 255
 
-        TP = np.sum(mask_img & final_mask)
-        FN = np.sum(mask_img & (255 - final_mask))
-        FP = np.sum((255 - mask_img) & final_mask)
-        TN = np.sum((255 - mask_img) & (255 - final_mask))
+    mask = mask_s
     
-        P = TP / (TP + FP)
-        R = TP / (TP + FN)
-        F_score = 2*(P*R/(P + R))
 
-        score = score + F_score
-        precision += P
-        recall += R
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(10, 5)))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(5, 10)))
 
-        print(f"Precision: {P:.4f}\nRecall: {R:.4f}\nF_score: {F_score:.4f}")
+    # plt.imshow(mask,cmap='gray')
+    # plt.show()
+
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask)
+
+    #For each label except background, get area and pick the two largest (possible two paintings)
+    component_info = [(i, stats[i, 4]) for i in range(1, num_labels)]
+    component_info.sort(key=lambda c: c[1], reverse=True)
+    top_two_labels = [c[0] for c in component_info[:2]]
+
+    new_mask = np.zeros_like(mask)
+
+    for label in top_two_labels:
+        
+        # Create a mask of only this component
+        ys, xs = np.where(labels == label)
+        points = np.column_stack((xs, ys))
+        
+        # Get rotated rectangle from these points
+        rect = cv2.minAreaRect(points)
+        box = cv2.boxPoints(rect).astype(int)
+        
+        # Fill the rectangle in the mask
+        cv2.fillPoly(new_mask, [box], 255)
+        
+    # plt.imshow(new_mask,cmap='gray')
+    # plt.show()  
     
-    print(f"Average F_score : {(score/NUMBER_IMAGE_DEV):.4f}")
-    print(f"Average Precision : {(precision/NUMBER_IMAGE_DEV):.4f}")
-    print(f"Average Recall : {(recall/NUMBER_IMAGE_DEV):.4f}")
+    return new_mask
+
+def get_masks(img) -> list:
+    
+    AREA_THRESHOLD = (0.2*img.shape[0]) * (0.2*img.shape[1])
+    discriminative_mask = get_discriminative_mask(img)
+
+    # Check if there is more than one painting (big area)
+    num_labels, _, stats, _ = cv2.connectedComponentsWithStats(discriminative_mask)
+    small_areas = np.sum(stats[1:, 4] < AREA_THRESHOLD)
+    # print(num_labels - small_areas - 1)
+    if num_labels - small_areas - 1 > 1:
+        
+        #Sort stats from left painting to right painting (in case there are more than 2 in the future)
+        stats_no_background = stats[1:]
+        stats_no_background = stats_no_background[np.argsort(stats_no_background[:, 0])]
+        
+        #Compute their distances to get their image slice
+        left_painting_x = stats_no_background[0, 0] + stats_no_background[0, 2]
+        right_painting_x = stats_no_background[1, 0]
+        distance = right_painting_x - left_painting_x
+        middle_pos = left_painting_x + distance//2
+
+        
+        left_painting = img[:, 0:middle_pos]
+        right_painting = img[:, middle_pos:]
+        
+        _, left_mask = main_background_removal(left_painting)
+        _, right_mask = main_background_removal(right_painting)
+        return [left_mask, right_mask]
+
+    # print("Doing single mask")
+    # plt.imshow(img)
+    # plt.show()
+    _, mask = main_background_removal(img)
+    return [mask]
