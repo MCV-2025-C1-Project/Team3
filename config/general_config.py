@@ -1,16 +1,17 @@
 from utils import metrics
 
 # General execution parameters
-PRECOMPUTE = False       # Whether to compute DB descriptors
-DEV_PREDICTION = False   # Whether to run dev pipeline
-TEST_PREDICTION = True # Whether to run test pipeline
+PRECOMPUTE = True       # Whether to compute DB descriptors
+DEV_PREDICTION = True   # Whether to run dev pipeline
+TEST_PREDICTION = False # Whether to run test pipeline
 
 
 TOP_K_TEST = 10
 K_VALUES = [1,5]
 
 # Descriptor families to use
-DESCRIPTORS = ["COLOR_DESCRIPTORS"]
+DESCRIPTORS = [#"COLOR_DESCRIPTORS",
+               "TEXTURE_DESCRIPTORS",]
 
 # Distance metrics
 WANTED_DISTANCES = [
