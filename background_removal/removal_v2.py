@@ -225,7 +225,6 @@ def run_image_v2(img):
             threshold_val = flat[0] 
         else:
             threshold_val = flat[-target_area]
-        print("Hi Aleix")
 
         # Binarize averaged mask with adaptive threshold
         ensemble_mask = np.where(avg_mask >= threshold_val, 255, 0).astype(np.uint8)

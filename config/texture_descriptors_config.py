@@ -10,13 +10,13 @@ from utils import metrics
 # Search space
 TEXTURE_TECHNIQUES = {
 
-    "LBP": {
-        "P": [4, 8, 16],
-        "R": [
-            1, 2, 3
-        ],
-        "method": ["default", "ror", "uniform", "nri_uniform", "var"]
-    },
+    #"LBP": {
+    #    "P": [4, 8, 16],
+    #    "R": [
+    #        1, 2, 3
+    #    ],
+    #    "method": ["default", "ror", "uniform", "nri_uniform", "var"]
+    #},
 
     "DCT": {
         "block_size": [4, 8, 16],
