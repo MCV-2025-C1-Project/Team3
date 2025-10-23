@@ -17,6 +17,13 @@ TEXTURE_TECHNIQUES = {
         ],
         "method": ["default", "ror", "uniform", "nri_uniform", "var"]
     },
+
+    "DCT": {
+        "block_size": [4, 8, 16],
+        "top_k": [
+            10, 20, 30
+        ],
+    },
 }
 
 
@@ -49,11 +56,11 @@ for descriptor, params in TEXTURE_TECHNIQUES.items():
         for denoising_method in DENOISING_METHODS:
             for denoising_kernel_size in DENOISING_KERNEL_SIZES:
                 if denoising_method[0] != "none":
-                    denoise_part = f"denoise{'-'.join(map(str, denoising_method))}{'-'.join(map(str, denoising_kernel_size))}"
+                    denoise_part = f"denoise-{denoising_method[0]}{'-'.join(map(str, denoising_kernel_size))}"
                     denoise_method = denoising_method[0]
                     denoise_kernel = denoising_kernel_size
                 else:
-                    denoise_part = f"denoise{'-'.join(map(str, denoising_method))}0"
+                    denoise_part = f"denoise-{denoising_method[0]}-0"
                     denoise_method = "none"
                     denoise_kernel = [0]
 

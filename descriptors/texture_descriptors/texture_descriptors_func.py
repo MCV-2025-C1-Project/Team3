@@ -10,6 +10,7 @@ from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 from pathlib import Path
 from skimage.feature import local_binary_pattern
+from scipy.fftpack import dct
 
 
 def visualize_histogram(hist: NDArray[np.float32], name_of_the_set: str, histogram_name: str, image_number: int, channel_labels: list[str] = None,channel_sizes: list[int] = None) -> None:
@@ -111,6 +112,12 @@ def generic_texture_descriptor(descriptor_type: str,
                 R=descriptor_specific_parameters.get("R", 1),
                 method=descriptor_specific_parameters.get("method", "uniform")
             )
+        elif descriptor_type == "DCT":
+            hist = dct_descriptor(
+                img,
+                block_size=descriptor_specific_parameters.get("block_size", 8),
+                top_k=descriptor_specific_parameters.get("top_k", 20)
+            )
             
         else:
             raise ValueError(f"Unsupported texture descriptor: {descriptor_type}")
@@ -127,7 +134,7 @@ def generic_texture_descriptor(descriptor_type: str,
         return hist
         
 
-    descriptor_fn.__name__ = f"{descriptor_type}_{descriptor_specific_parameters}_denoise{'-'.join(map(str, denoising_method))}{'-'.join(map(str, denoising_kernel_size))}"
+    descriptor_fn.__name__ = f"{descriptor_type}_{descriptor_specific_parameters}_denoise-{denoising_method}{'-'.join(map(str, denoising_kernel_size))}"
 
     return descriptor_fn
 
@@ -181,3 +188,66 @@ def lbp_descriptor(image, P=8, R=1, method='uniform'):
     if s > 0:
         hist = hist / s
     return hist
+
+
+def dct_descriptor(image, block_size=8, top_k=20):
+    """
+    Compute DCT descriptor for an image.
+
+    The descriptor is based on the low-frequency DCT coefficients, which capture
+    the main texture and intensity variations of the image.
+
+    Parameters
+    ----------
+    image : ndarray
+        2D grayscale image or 3D color image.
+    block_size : int
+        Size of the block for block-wise DCT.
+        If None, computes the DCT for the whole image.
+    top_k : int
+        Number of lowest-frequency DCT coefficients to keep.
+        These represent the most relevant texture information.
+
+    Returns
+    -------
+    desc : ndarray
+        1D normalized DCT-based texture descriptor.
+    """
+
+    # Convert to numpy array
+    img = np.asarray(image)
+
+    # Convert to grayscale
+    if img.ndim == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    img = img.astype(np.float32)
+
+    # block-wise DCT
+    if block_size is not None:
+        h, w = img.shape
+        desc_list = []
+        for i in range(0, h - block_size + 1, block_size):
+            for j in range(0, w - block_size + 1, block_size):
+                block = img[i:i + block_size, j:j + block_size]
+                dct_block = dct(dct(block.T, norm='ortho').T, norm='ortho')
+                # Flatten and sort by frequency importance (top-left corner = low frequencies)
+                dct_flat = dct_block.flatten()
+                # Sort by zigzag order
+                idx = np.argsort(np.abs(dct_flat))[-top_k:]
+                desc_list.append(dct_flat[idx])
+        desc = np.concatenate(desc_list)
+    else:
+        # global DCT
+        dct_img = dct(dct(img.T, norm='ortho').T, norm='ortho')
+        dct_flat = dct_img.flatten()
+        idx = np.argsort(np.abs(dct_flat))[-top_k:]
+        desc = dct_flat[idx]
+
+    # Normalize descriptor
+    desc = np.abs(desc)
+    s = np.sum(desc)
+    if s > 0:
+        desc = desc / s
+
+    return desc

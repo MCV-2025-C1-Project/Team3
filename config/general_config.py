@@ -11,7 +11,8 @@ K_VALUES = [1,5]
 
 # Descriptor families to use
 DESCRIPTORS = [#"COLOR_DESCRIPTORS",
-               "TEXTURE_DESCRIPTORS",]
+               "TEXTURE_DESCRIPTORS",
+            ]
 
 # Distance metrics
 WANTED_DISTANCES = [
