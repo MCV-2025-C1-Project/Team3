@@ -12,6 +12,7 @@ from tqdm import tqdm
 from utils import metrics
 from config import io_config, general_config
 from config.color_descriptors_config import DEV_COLOR_DESCRIPTORS, DEV_COLOR_DESCRIPTOR_NAMES
+from config.texture_descriptors_config import DEV_TEXTURE_DESCRIPTORS, DEV_TEXTURE_DESCRIPTOR_NAMES
 from utils.common import load_precomputed_descriptors
 from background_removal.main_background_removal import main_background_removal
 
@@ -26,8 +27,7 @@ def compute_development_descriptors(WANTED_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_
     for i in tqdm(range(NUMBER_IMAGE_DEV), desc="Dev images processed: "):
         image_path = io_config.dev_image_path(i)
         img = cv2.imread(image_path)
-        if general_config.REMOVE_BACKGROUND:
-            img, _ = main_background_removal(img)
+        
         image_descriptors = [f(img, NAME_OF_DEV_SET, i, visualize=False) for f in WANTED_DESCRIPTORS]
         all_descriptors.append(image_descriptors)
     return all_descriptors
@@ -158,7 +158,7 @@ def run_dev():
     NAME_OF_DEV_SET = io_config.DEV_NAME
 
     # Prepare names and files
-    descriptors_names = [f.__name__ for f in DEV_COLOR_DESCRIPTORS]
+    descriptors_names = [f.__name__ for f in DEV_TEXTURE_DESCRIPTORS]
     distances_names = [
         d[0].__name__ if isinstance(d, tuple) else d.__name__
         for d in general_config.WANTED_DISTANCES
@@ -210,7 +210,7 @@ def run_dev():
 
     # Compute descriptors for all dev images once (these are small compared to DB)
     log.info("Computing descriptors for all dev images (kept in memory)...")
-    all_descriptors = compute_development_descriptors(DEV_COLOR_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_IMAGE_DEV)
+    all_descriptors = compute_development_descriptors(DEV_TEXTURE_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_IMAGE_DEV)
 
     # For each descriptor type and distance, scan the DB file only once and update top-K heaps for every dev image
     for desc_idx, desc_name in enumerate(descriptors_names):

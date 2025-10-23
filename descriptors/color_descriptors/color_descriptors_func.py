@@ -3,7 +3,8 @@ Collection of descriptors of an image
 """
 
 import numpy as np
-from config import io_config
+from config import io_config, general_config
+from background_removal.main_background_removal import main_background_removal
 import cv2
 from numpy.typing import NDArray
 import matplotlib.pyplot as plt
@@ -170,6 +171,8 @@ def generic_color_descriptor(color_space: str,
         elif denoising_method == "bilateral":
             converted = cv2.bilateralFilter(converted, d=denoising_kernel_size[0], sigmaColor=75, sigmaSpace=75)
 
+        if general_config.REMOVE_BACKGROUND:
+            converted, _ = main_background_removal(converted)
 
         if color_space == "gray":
             channel_imgs = [converted]

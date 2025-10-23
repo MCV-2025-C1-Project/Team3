@@ -23,6 +23,7 @@ MASK_DIR_ALG_X = MASKS_DIR/"outputs_algorithm_x"
 
 DESCRIPTORS_DIR = BASE_DIR / "descriptors"
 COLOR_DESC_DIR  = DESCRIPTORS_DIR / "color_descriptors/stored_color_descriptors"
+TEXTURE_DESC_DIR  = DESCRIPTORS_DIR / "texture_descriptors/stored_texture_descriptors"
 
 HIST_DIR        = RESULTS_DIR / "histograms"
 STORE_HISTOGRAMS = False
