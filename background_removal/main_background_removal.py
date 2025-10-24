@@ -138,12 +138,12 @@ def get_masks(img) -> list:
         left_painting = img[:, 0:middle_pos]
         right_painting = img[:, middle_pos:]
         
-        _, left_mask = main_background_removal(left_painting)
-        _, right_mask = main_background_removal(right_painting)
-        return [left_mask, right_mask]
+        cropped_left, left_mask = main_background_removal(left_painting)
+        cropped_right, right_mask = main_background_removal(right_painting)
+        return [cropped_left, cropped_right], [left_mask, right_mask]
 
     # print("Doing single mask")
     # plt.imshow(img)
     # plt.show()
-    _, mask = main_background_removal(img)
-    return [mask]
+    cropped, mask = main_background_removal(img)
+    return [cropped], [mask]

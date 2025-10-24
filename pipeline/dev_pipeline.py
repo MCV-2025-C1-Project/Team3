@@ -15,7 +15,7 @@ from config import io_config, general_config
 from config.color_descriptors_config import DEV_COLOR_DESCRIPTORS, DEV_COLOR_DESCRIPTOR_NAMES
 from config.texture_descriptors_config import DEV_TEXTURE_DESCRIPTORS, DEV_TEXTURE_DESCRIPTOR_NAMES
 from utils.common import load_precomputed_descriptors
-from background_removal.main_background_removal import main_background_removal
+from background_removal.main_background_removal import get_masks
 
 
 
@@ -28,7 +28,18 @@ def compute_development_descriptors(WANTED_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_
     for i in tqdm(range(NUMBER_IMAGE_DEV), desc="Dev images processed: "):
         image_path = io_config.dev_image_path(i)
         img = cv2.imread(image_path)
-        
+        if general_config.REMOVE_BACKGROUND:
+            log.info(f"Doing background removal for image: {image_path.name}, please be patient")
+            img, mask = get_masks(img)
+            
+            if len(img) == 2:
+                left_descriptors = [f(img[0], NAME_OF_DEV_SET, i, visualize=False) for f in WANTED_DESCRIPTORS]
+                right_descriptors = [f(img[1], NAME_OF_DEV_SET, i, visualize=False) for f in WANTED_DESCRIPTORS]
+                conjuct = [left_descriptors, right_descriptors]
+                all_descriptors.append(conjuct)
+                continue
+            img = img[0]
+            
         image_descriptors = [f(img, NAME_OF_DEV_SET, i, visualize=False) for f in WANTED_DESCRIPTORS]
         all_descriptors.append(image_descriptors)
     return all_descriptors
@@ -160,8 +171,6 @@ def run_dev():
 
     # Prepare names and files
     descriptors_names = [f.__name__ for f in DEV_TEXTURE_DESCRIPTORS]
-    print("TEEEEEEEXTURE DEEEEEEEEEEEESCRIPTOR: ", DEV_TEXTURE_DESCRIPTORS)
-    print("DESCRIPTOR NAAAAAAAAAAAAMES: ", descriptors_names)
     distances_names = [
         d[0].__name__ if isinstance(d, tuple) else d.__name__
         for d in general_config.WANTED_DISTANCES
@@ -238,21 +247,55 @@ def run_dev():
 
                     # For each dev image compute distance and update its heap
                     for dev_idx in range(NUMBER_IMAGE_DEV):
-                        dev_vec = all_descriptors[dev_idx][desc_idx]
-                        raw_score = dist_fn(dev_vec, db_vec)
-                        score = raw_score if not is_tuple else 1.0 / (raw_score + eps)
-
-                        h = heaps[dev_idx]
-                        if len(h) < max_k:
-                            heapq.heappush(h, (-score, db_idx))
+                        images_descriptors = all_descriptors[dev_idx]
+                        
+                        #If image contains more than one painting, handle it
+                        if len(images_descriptors) == 2:
+                            # Initialize one heap per sub-image
+                            heaps[dev_idx] = [[], []]
+                            #Do the same as in individual images per painting
+                            for idx, image_descriptors in enumerate(images_descriptors):
+                                dev_vec = image_descriptors[desc_idx]
+                                raw_score = dist_fn(dev_vec, db_vec)
+                                score = raw_score if not is_tuple else 1.0 / (raw_score + eps)
+                                h = heaps[dev_idx][idx]
+                                if len(h) < max_k:
+                                    heapq.heappush(h, (-score, db_idx))
+                                else:
+                                    current_max = -h[0][0]
+                                    if score < current_max:
+                                        heapq.heapreplace(h, (-score, db_idx))
                         else:
-                            current_max = -h[0][0]
-                            if score < current_max:
-                                heapq.heapreplace(h, (-score, db_idx))
+                            dev_vec = images_descriptors[desc_idx]
+                            raw_score = dist_fn(dev_vec, db_vec)
+                            score = raw_score if not is_tuple else 1.0 / (raw_score + eps)
+
+                            h = heaps[dev_idx]
+                            if len(h) < max_k:
+                                heapq.heappush(h, (-score, db_idx))
+                            else:
+                                current_max = -h[0][0]
+                                if score < current_max:
+                                    heapq.heapreplace(h, (-score, db_idx))
 
             # After scanning DB, extract top-K for each dev image and compute AP@k
             for dev_idx in range(NUMBER_IMAGE_DEV):
                 h = heaps[dev_idx]
+                
+                #If image contains more than one painting, handle it
+                if isinstance(h[0], list):
+                    #Do the same as in individual images but for each painting in the image
+                    for idx, heap in enumerate(h):
+                        sorted_entries = sorted(heap, key=lambda x: -x[0])
+                        top_indices = [entry[1] for entry in sorted_entries]
+                        for k_idx, eval_k in enumerate(eval_ks):
+                            preds_k = top_indices[:eval_k]
+                            score = metrics.average_precision_k([ground_truth[dev_idx][idx]], preds_k, eval_k)
+                            #Since we do not have one point for each subpainting, I guess that doing the average score between the two
+                            #is good enough
+                            descriptor_scores_sums[desc_idx, dist_idx, k_idx] += 0.5*score
+                    continue
+                
                 sorted_entries = sorted(h, key=lambda x: -x[0])  # increasing score
                 top_indices = [entry[1] for entry in sorted_entries]
 

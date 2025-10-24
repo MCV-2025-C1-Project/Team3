@@ -1,7 +1,7 @@
 from utils import metrics
 
 # General execution parameters
-PRECOMPUTE = True       # Whether to compute DB descriptors
+PRECOMPUTE = False       # Whether to compute DB descriptors
 DEV_PREDICTION = True   # Whether to run dev pipeline
 TEST_PREDICTION = False # Whether to run test pipeline
 
@@ -26,5 +26,5 @@ WANTED_DISTANCES = [
     metrics.canberra_distance,
 ]
 
-REMOVE_BACKGROUND = False
-SAVE_BACKGROUND_MASK = True
+REMOVE_BACKGROUND = True
+SAVE_BACKGROUND_MASK = False

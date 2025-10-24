@@ -229,6 +229,8 @@ def dct_descriptor(image, divisions=8, top_k=20):
     if img.ndim == 3:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
+    img = cv2.resize(img, [256, 256])
+
     img = img.astype(np.float32)
     
     h, w = img.shape
