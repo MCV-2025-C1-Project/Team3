@@ -26,15 +26,6 @@ TEXTURE_TECHNIQUES = {
     },
 }
 
-
-DENOISING_METHODS = [
-    ["none"], ["gaussian"], ["median"], ["bilateral"]
-]
-
-DENOISING_KERNEL_SIZES = [
-    [3], [5], [7]
-]
-
 # Grid search configs
 TEXTURE_DESCRIPTORS_CONFIGS = []
 
@@ -51,34 +42,23 @@ for descriptor, params in TEXTURE_TECHNIQUES.items():
         param_name_parts = []
         for i, (k, v) in enumerate(specific_params.items(), start=1):
             param_name_parts.append(f"param{i}{str(v)}")
+            
+            
+        name = (
+            f"{descriptor}_"
+            + "_".join(param_name_parts)
+        )
 
-        # Handle denoising options
-        for denoising_method in DENOISING_METHODS:
-            for denoising_kernel_size in DENOISING_KERNEL_SIZES:
-                if denoising_method[0] != "none":
-                    denoise_part = f"denoise-{denoising_method[0]}{'-'.join(map(str, denoising_kernel_size))}"
-                    denoise_method = denoising_method[0]
-                    denoise_kernel = denoising_kernel_size
-                else:
-                    denoise_part = f"denoise-{denoising_method[0]}-0"
-                    denoise_method = "none"
-                    denoise_kernel = [0]
 
-                name = (
-                    f"{descriptor}_"
-                    + "_".join(param_name_parts)
-                    + denoise_part
-                )
+        cfg = {
+            "name": name,
+            "texture_descriptor": descriptor,
+            "specific_parameters": specific_params,
+        }
 
-                cfg = {
-                    "name": name,
-                    "texture_descriptor": descriptor,
-                    "specific_parameters": specific_params,
-                    "denoising_method": denoise_method,
-                    "denoising_kernel_size": denoise_kernel,
-                }
+        TEXTURE_DESCRIPTORS_CONFIGS.append(cfg)
 
-                TEXTURE_DESCRIPTORS_CONFIGS.append(cfg)
+                
 
 CONFIGS_BY_NAME = {cfg["name"]: cfg for cfg in TEXTURE_DESCRIPTORS_CONFIGS}
 
@@ -88,16 +68,11 @@ INDIVIDUAL_TEXTURE_DESCRIPTORS = [
     descriptors.generic_texture_descriptor(
         descriptor_type=cfg["texture_descriptor"],
         descriptor_specific_parameters=cfg["specific_parameters"],
-        denoising_method=cfg["denoising_method"],
-        denoising_kernel_size=cfg["denoising_kernel_size"]
     )
     for cfg in TEXTURE_DESCRIPTORS_CONFIGS
 ]
 
 INDIVIDUAL_TEXTURE_DESCRIPTORS_NAMES = [cfg["name"] for cfg in TEXTURE_DESCRIPTORS_CONFIGS]
-
-
-
 
 
 # Final lists

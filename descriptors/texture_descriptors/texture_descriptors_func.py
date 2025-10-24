@@ -10,7 +10,8 @@ from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 from pathlib import Path
 from skimage.feature import local_binary_pattern
-from scipy.fftpack import dct
+from scipy.fftpack import dctn
+from skimage.util import view_as_blocks
 
 
 def visualize_histogram(hist: NDArray[np.float32], name_of_the_set: str, histogram_name: str, image_number: int, channel_labels: list[str] = None,channel_sizes: list[int] = None) -> None:
@@ -92,18 +93,8 @@ def generic_texture_descriptor(descriptor_type: str,
 
     def descriptor_fn(img: NDArray, name_of_the_set: str = "", image_number: int = 0, visualize: bool = False) -> NDArray:
         
-        # Apply denoising if specified
-        if denoising_method == "gaussian":
-            converted = cv2.GaussianBlur(img, (denoising_kernel_size[0], denoising_kernel_size[0]), 0)
-        elif denoising_method == "median":
-            converted = cv2.medianBlur(img, denoising_kernel_size[0])
-        elif denoising_method == "bilateral":
-            converted = cv2.bilateralFilter(img, d=denoising_kernel_size[0], sigmaColor=75, sigmaSpace=75)
-        else:
-            converted = img.copy()
+        converted = img.copy()
 
-        if general_config.REMOVE_BACKGROUND:
-            converted, _ = main_background_removal(converted)
         
         if descriptor_type == "LBP":
             hist = lbp_descriptor(
@@ -115,7 +106,7 @@ def generic_texture_descriptor(descriptor_type: str,
         elif descriptor_type == "DCT":
             hist = dct_descriptor(
                 img,
-                block_size=descriptor_specific_parameters.get("block_size", 8),
+                divisions=descriptor_specific_parameters.get("block_size", 8),
                 top_k=descriptor_specific_parameters.get("top_k", 20)
             )
             
@@ -134,7 +125,7 @@ def generic_texture_descriptor(descriptor_type: str,
         return hist
         
 
-    descriptor_fn.__name__ = f"{descriptor_type}_{descriptor_specific_parameters}_denoise-{denoising_method}{'-'.join(map(str, denoising_kernel_size))}"
+    descriptor_fn.__name__ = f"{descriptor_type}_{descriptor_specific_parameters}"
 
     return descriptor_fn
 
@@ -189,8 +180,26 @@ def lbp_descriptor(image, P=8, R=1, method='uniform'):
         hist = hist / s
     return hist
 
+def zigzag_indices(h, w):
+    indices = []
+    for s in range(h + w - 1):
+        diagonal = []
+        for i in range(s + 1):
+            j = s - i
+            if i < h and j < w:
+                diagonal.append((i, j))
+        
+        # For even diagonals (s=0,2,4...), go down-right (reverse)
+        # For odd diagonals (s=1,3,5...), go up-left (normal order)
+        if s % 2 == 0:
+            diagonal = diagonal[::-1]
+        
+        indices.extend(diagonal)
+    
+    return np.array(indices)
 
-def dct_descriptor(image, block_size=8, top_k=20):
+
+def dct_descriptor(image, divisions=8, top_k=20):
     """
     Compute DCT descriptor for an image.
 
@@ -201,9 +210,8 @@ def dct_descriptor(image, block_size=8, top_k=20):
     ----------
     image : ndarray
         2D grayscale image or 3D color image.
-    block_size : int
-        Size of the block for block-wise DCT.
-        If None, computes the DCT for the whole image.
+    divisions : int
+        The number of blocks in which the image is divided
     top_k : int
         Number of lowest-frequency DCT coefficients to keep.
         These represent the most relevant texture information.
@@ -222,32 +230,27 @@ def dct_descriptor(image, block_size=8, top_k=20):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     img = img.astype(np.float32)
-
-    # block-wise DCT
-    if block_size is not None:
-        h, w = img.shape
-        desc_list = []
-        for i in range(0, h - block_size + 1, block_size):
-            for j in range(0, w - block_size + 1, block_size):
-                block = img[i:i + block_size, j:j + block_size]
-                dct_block = dct(dct(block.T, norm='ortho').T, norm='ortho')
-                # Flatten and sort by frequency importance (top-left corner = low frequencies)
-                dct_flat = dct_block.flatten()
-                # Sort by zigzag order
-                idx = np.argsort(np.abs(dct_flat))[-top_k:]
-                desc_list.append(dct_flat[idx])
-        desc = np.concatenate(desc_list)
-    else:
-        # global DCT
-        dct_img = dct(dct(img.T, norm='ortho').T, norm='ortho')
-        dct_flat = dct_img.flatten()
-        idx = np.argsort(np.abs(dct_flat))[-top_k:]
-        desc = dct_flat[idx]
+    
+    h, w = img.shape
+    
+    block_h = h // divisions
+    block_w = w // divisions
+        
+    # Crop to full blocks to avoid shape mismatch
+    h_crop = (h // block_h) * block_h
+    w_crop = (w // block_w) * block_w
+    h_start = (h - h_crop) // 2
+    w_start = (w - w_crop) // 2
+    img = img[h_start:h_start+h_crop, w_start:w_start+w_crop]
+    
+    blocks = view_as_blocks(img, block_shape=(block_h, block_w))
+    blocks = blocks.reshape(-1, block_h, block_w)
+    dct_blocks = dctn(blocks, norm='ortho', axes=(-2, -1))
+    zz = zigzag_indices(block_h, block_w)[:top_k]
+    flat = np.abs(dct_blocks.reshape(blocks.shape[0], -1))# Crop to full blocks to avoid shape mismatch
+    desc = np.abs(dct_blocks[:, zz[:, 0], zz[:, 1]]).ravel()
 
     # Normalize descriptor
-    desc = np.abs(desc)
-    s = np.sum(desc)
-    if s > 0:
-        desc = desc / s
+    desc /= np.sum(desc) + 1e-8
 
     return desc
