@@ -1,67 +1,46 @@
 import cv2
 import numpy as np
-from skimage.restoration import denoise_nl_means, estimate_sigma
-import bm3d
-from config import noise_removal_config
-
-def gaussian_filter(img, ksize, sigma):
-    return cv2.GaussianBlur(img, ksize, sigma)
+import pywt
 
 
-def median_filter(img, ksize):
-    return cv2.medianBlur(img, ksize)
-
-
-def bilateral_filter(img, d, sigmaColor, sigmaSpace):
-    return cv2.bilateralFilter(img, d, sigmaColor, sigmaSpace)
-
-
-def nl_means_filter(channel, h, patch_size, patch_distance, fast_mode=True):
-    sigma_est = np.mean(estimate_sigma(channel, channel_axis=None))
-    denoised = denoise_nl_means(
-        channel,
-        h=h * sigma_est,
-        patch_size=patch_size,
-        patch_distance=patch_distance,
-        fast_mode=fast_mode,
-        channel_axis=None
-    )
-    return (denoised * 255).astype(np.uint8)
-
-
-def bm3d_filter(channel, sigma_psd):
-    channel = channel.astype(np.float32) / 255.0
-    denoised = bm3d.bm3d(channel, sigma_psd)
-    return (denoised * 255).astype(np.uint8)
-
-
-
-
-def main_noise_removal(img: np.ndarray, method_to_detect_noise: str, denoising_method: str):
-
-    if method_to_detect_noise == "Laplacian_Var":
-        gf
+# NOISE DETECTION ALGORITHM
+def estimate_noise_wavelet(img, wavelet='db2', level=1, threshold=5.0):
+    coeffs = pywt.wavedec2(img, wavelet=wavelet, level=level)
+    sigma_per_level = []
+    for i in range(1, len(coeffs)): 
+        LH, HL, HH = coeffs[i]
+        sigma = np.median(np.abs(HH)) / 0.6745 
+        sigma_per_level.append(sigma)
     
+    sigma_est = np.mean(sigma_per_level)
+    has_noise = sigma_est > threshold
+    return has_noise, sigma_est
 
-    elif method_to_detect_noise == :
-    
+
+# NOISE REMOVAL ALGORTIHM
+def denoise_median_bilateral(img_bgr, k_y=3, k_cbcr=5, bilateral_d=5, sigma_color=40, sigma_space=10):
+    img_ycc = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2YCrCb)
+    Y, Cr, Cb = cv2.split(img_ycc)
+
+    # Median filters to all the channels withh different hyp
+    Y_med = cv2.medianBlur(Y, k_y)
+    Cr_med = cv2.medianBlur(Cr, k_cbcr)
+    Cb_med = cv2.medianBlur(Cb, k_cbcr)
+
+    # Bilateral to Y
+    Y_bilat = cv2.bilateralFilter(Y_med, d=bilateral_d, sigmaColor=sigma_color, sigmaSpace=sigma_space)
+
+    img_ycc_deno = cv2.merge([Y_bilat, Cr_med, Cb_med])
+    return cv2.cvtColor(img_ycc_deno, cv2.COLOR_YCrCb2BGR)
+
+
+
+def main_noise_removal(img: np.ndarray, denoising_method: str):
+    ycc = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
+    Y = ycc[:, :, 0].astype(np.float32)
+    detected_noise,_ = estimate_noise_wavelet(Y)
 
     if detected_noise:
-        params = noise_removal_config[denoising_method]
-
-        if denoising_method == "Gaussian":
-            result = gaussian_filter(img, **params)
-
-        elif denoising_method == "Median":
-            result = median_filter(img, **params)
-
-        elif denoising_method == "Bilateral":
-            result = bilateral_filter(img, **params)
-
-        elif denoising_method == "non_local_means":
-            result = nl_means_filter(img, **params)
-
-        elif denoising_method == "bm3d":
-            result = bm3d_filter(img, **params)
-        return result
+        denoised_image = denoise_median_bilateral()
+        return denoised_image
     return img
