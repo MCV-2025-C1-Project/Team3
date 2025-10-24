@@ -217,7 +217,7 @@ def run_dev():
     # For each descriptor type and distance, scan the DB file only once and update top-K heaps for every dev image
     for desc_idx, desc_name in enumerate(descriptors_names):
         log.info(f"Processing descriptor {desc_idx+1}/{len(descriptors_names)}: {desc_name}")
-        db_file_path = io_config.TEXTURE_DESC_DIR / f"{desc_name}.txt"
+        db_file_path = io_config.TEXTURE_DESC_DIR / f"{desc_name}.h5"
 
         # For each distance metric we will create per-dev heaps
         for dist_idx, dist_entry in enumerate(general_config.WANTED_DISTANCES):
@@ -227,13 +227,13 @@ def run_dev():
             # Initialize a heap per dev image (store up to max_k best matches)
             heaps = [[] for _ in range(NUMBER_IMAGE_DEV)]  # each is a max-heap via (-score, db_idx)
 
-            # Stream DB once
-            with open(db_file_path, "r") as fh:
-                for db_idx, line in enumerate(tqdm(fh, desc=f"Scanning DB for {desc_name} / {dist_idx}", unit="lines", leave=False)):
-                    try:
-                        db_vec = np.fromstring(line, sep=" ")
-                    except Exception:
-                        continue
+            # Stream DB once (HDF5)
+            with h5py.File(db_file_path, "r") as h5f:
+                db_dataset = h5f["descriptors"]
+                num_db_entries = db_dataset.shape[0]
+
+                for db_idx in tqdm(range(num_db_entries), desc=f"Scanning DB for {desc_name} / {dist_idx}", unit="entries", leave=False):
+                    db_vec = db_dataset[db_idx]  # Each descriptor is a NumPy array of shape (7680,)
 
                     # For each dev image compute distance and update its heap
                     for dev_idx in range(NUMBER_IMAGE_DEV):
