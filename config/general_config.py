@@ -1,7 +1,7 @@
 from utils import metrics
 
 # General execution parameters
-PRECOMPUTE = False       # Whether to compute DB descriptors
+PRECOMPUTE = True       # Whether to compute DB descriptors
 DEV_PREDICTION = True   # Whether to run dev pipeline
 TEST_PREDICTION = False # Whether to run test pipeline
 
@@ -10,8 +10,8 @@ TOP_K_TEST = 10
 K_VALUES = [1,5]
 
 # Descriptor families to use
-DESCRIPTORS = [#"COLOR_DESCRIPTORS",
-               "TEXTURE_DESCRIPTORS",
+DESCRIPTORS = ["COLOR_DESCRIPTORS",
+               #"TEXTURE_DESCRIPTORS",
             ]
 
 # Distance metrics
@@ -26,6 +26,8 @@ WANTED_DISTANCES = [
     metrics.canberra_distance,
 ]
 
-REMOVE_BACKGROUND = True
+REMOVE_BACKGROUND = False
 SAVE_BACKGROUND_MASK = False
-APPLY_BACKGROUND_REMOVAL = True
+APPLY_BACKGROUND_REMOVAL = False
+
+REMOVE_NOISE = True

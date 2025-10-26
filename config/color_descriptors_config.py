@@ -86,13 +86,6 @@ HIERARCHICAL_LEVELS = [
     [10],
 ]
 
-DENOISING_METHODS = [
-    ["none"], ["gaussian"], ["median"], ["bilateral"]
-]
-
-DENOISING_KERNEL_SIZES = [
-    [3], [5], [7]
-]
 
 # Grid search configs
 
@@ -103,37 +96,19 @@ for space, params in COLOR_SPACES.items():
             continue
         for weights in WEIGHTS_OPTIONS[len(channels)]:
             for hierarchical_levels in HIERARCHICAL_LEVELS:
-                for denoising_method in DENOISING_METHODS:
-                    if denoising_method[0] != "none":
+                 
+                name = f"{space}_{'_'.join(channels)}_bins{'-'.join(map(str, bins))}_w{'-'.join(map(str, weights))}_hier{'-'.join(map(str, hierarchical_levels))}"
+                cfg = {
+                    "name": name,
+                    "color_space": space,
+                    "channels": channels,
+                    "bins": bins,
+                    "ranges": ranges,
+                    "weights": weights,
+                    "hierarchical": hierarchical_levels,
+                }
+                COLOR_DESCRIPTORS_CONFIGS.append(cfg)
 
-                        for denoising_kernel_size in DENOISING_KERNEL_SIZES:    
-                            name = f"{space}_{'_'.join(channels)}_bins{'-'.join(map(str, bins))}_w{'-'.join(map(str, weights))}_hier{'-'.join(map(str, hierarchical_levels))}_denoise{'-'.join(map(str, denoising_method)).join(map(str, denoising_kernel_size))}"
-                            cfg = {
-                                "name": name,
-                                "color_space": space,
-                                "channels": channels,
-                                "bins": bins,
-                                "ranges": ranges,
-                                "weights": weights,
-                                "hierarchical": hierarchical_levels,
-                                "denoising_method": denoising_method[0],
-                                "denoising_kernel_size": denoising_kernel_size
-                            }
-                            COLOR_DESCRIPTORS_CONFIGS.append(cfg)
-                    else:
-                        name = f"{space}_{'_'.join(channels)}_bins{'-'.join(map(str, bins))}_w{'-'.join(map(str, weights))}_hier{'-'.join(map(str, hierarchical_levels))}_denoise{'-'.join(map(str, denoising_method)).join("0")}"
-                        cfg = {
-                            "name": name,
-                            "color_space": space,
-                            "channels": channels,
-                            "bins": bins,
-                            "ranges": ranges,
-                            "weights": weights,
-                            "hierarchical": hierarchical_levels,
-                            "denoising_method": "none",
-                            "denoising_kernel_size": 0
-                        }
-                        COLOR_DESCRIPTORS_CONFIGS.append(cfg)
 
 CONFIGS_BY_NAME = {cfg["name"]: cfg for cfg in COLOR_DESCRIPTORS_CONFIGS}
 
@@ -147,8 +122,6 @@ INDIVIDUAL_COLOR_DESCRIPTORS = [
         ranges=cfg["ranges"],
         weights=cfg["weights"],
         hierarchical_levels=cfg["hierarchical"],
-        denoising_method=cfg["denoising_method"],
-        denoising_kernel_size=cfg["denoising_kernel_size"]
     )
     for cfg in COLOR_DESCRIPTORS_CONFIGS
 ]
@@ -170,38 +143,19 @@ for space, params in COLOR_SPACES.items():
             pair_ranges = [ranges_all[i] for i in idx_pair]
             for weights in WEIGHTS_OPTIONS[len(pair_channels)]:
                 for hierarchical_levels in HIERARCHICAL_LEVELS:
+   
+                    name = f"{space}_{'_'.join(channels)}_bins{'-'.join(map(str, bins))}_w{'-'.join(map(str, weights))}_hier{'-'.join(map(str, hierarchical_levels))}"
+                    cfg = {
+                        "name": name,
+                        "color_space": space,
+                        "channels": channels,
+                        "bins": bins,
+                        "ranges": ranges,
+                        "weights": weights,
+                        "hierarchical": hierarchical_levels,
+                    }
+                    COLOR_DESCRIPTORS_2D_CONFIGS.append(cfg)
 
-                    for denoising_method in DENOISING_METHODS:
-                        if denoising_method[0] != "none":
-
-                            for denoising_kernel_size in DENOISING_KERNEL_SIZES:    
-                                name = f"{space}_{'_'.join(channels)}_bins{'-'.join(map(str, bins))}_w{'-'.join(map(str, weights))}_hier{'-'.join(map(str, hierarchical_levels))}_denoise{'-'.join(map(str, denoising_method)).join(map(str, denoising_kernel_size))}"
-                                cfg = {
-                                    "name": name,
-                                    "color_space": space,
-                                    "channels": channels,
-                                    "bins": bins,
-                                    "ranges": ranges,
-                                    "weights": weights,
-                                    "hierarchical": hierarchical_levels,
-                                    "denoising_method": denoising_method[0],
-                                    "denoising_kernel_size": denoising_kernel_size
-                                }
-                                COLOR_DESCRIPTORS_2D_CONFIGS.append(cfg)
-                        else:
-                            name = f"{space}_{'_'.join(channels)}_bins{'-'.join(map(str, bins))}_w{'-'.join(map(str, weights))}_hier{'-'.join(map(str, hierarchical_levels))}_denoise{'-'.join(map(str, denoising_method)).join("0")}"
-                            cfg = {
-                                "name": name,
-                                "color_space": space,
-                                "channels": channels,
-                                "bins": bins,
-                                "ranges": ranges,
-                                "weights": weights,
-                                "hierarchical": hierarchical_levels,
-                                "denoising_method": "none",
-                                "denoising_kernel_size": 0
-                            }
-                            COLOR_DESCRIPTORS_2D_CONFIGS.append(cfg)
 
 
 CONFIGS_2D_BY_NAME = {cfg["name"]: cfg for cfg in COLOR_DESCRIPTORS_2D_CONFIGS}
@@ -214,8 +168,6 @@ INDIVIDUAL_COLOR_DESCRIPTORS_2D = [
         ranges=cfg["ranges"],
         weights=cfg["weights"],
         hierarchical_levels=cfg["hierarchical"],
-        denoising_method=cfg["denoising_method"],
-        denoising_kernel_size=cfg["denoising_kernel_size"]
     )
     for cfg in COLOR_DESCRIPTORS_2D_CONFIGS
 ]
@@ -233,12 +185,8 @@ for space, params in COLOR_SPACES.items():
             continue
         for weights in WEIGHTS_OPTIONS[len(channels)]:
             for hierarchical_levels in HIERARCHICAL_LEVELS:
-                for denoising_method in DENOISING_METHODS:
-
-                    if denoising_method[0] != "none":
-
-                        for denoising_kernel_size in DENOISING_KERNEL_SIZES:    
-                            name = f"{space}_{'_'.join(channels)}_bins{'-'.join(map(str, bins))}_w{'-'.join(map(str, weights))}_hier{'-'.join(map(str, hierarchical_levels))}_denoise{'-'.join(map(str, denoising_method)).join(map(str, denoising_kernel_size))}"
+  
+                            name = f"{space}_{'_'.join(channels)}_bins{'-'.join(map(str, bins))}_w{'-'.join(map(str, weights))}_hier{'-'.join(map(str, hierarchical_levels))}"
                             cfg = {
                                 "name": name,
                                 "color_space": space,
@@ -247,24 +195,8 @@ for space, params in COLOR_SPACES.items():
                                 "ranges": ranges,
                                 "weights": weights,
                                 "hierarchical": hierarchical_levels,
-                                "denoising_method": denoising_method[0],
-                                "denoising_kernel_size": denoising_kernel_size
                             }
                             COLOR_DESCRIPTORS_3D_CONFIGS.append(cfg)
-                    else:
-                        name = f"{space}_{'_'.join(channels)}_bins{'-'.join(map(str, bins))}_w{'-'.join(map(str, weights))}_hier{'-'.join(map(str, hierarchical_levels))}_denoise{'-'.join(map(str, denoising_method)).join("0")}"
-                        cfg = {
-                            "name": name,
-                            "color_space": space,
-                            "channels": channels,
-                            "bins": bins,
-                            "ranges": ranges,
-                            "weights": weights,
-                            "hierarchical": hierarchical_levels,
-                            "denoising_method": "none",
-                            "denoising_kernel_size": 0
-                        }
-                        COLOR_DESCRIPTORS_3D_CONFIGS.append(cfg)
 
 CONFIGS_3D_BY_NAME = {cfg["name"]: cfg for cfg in COLOR_DESCRIPTORS_3D_CONFIGS}
 
@@ -276,8 +208,6 @@ INDIVIDUAL_COLOR_DESCRIPTORS_3D = [
         ranges=cfg["ranges"],
         weights=cfg["weights"],
         hierarchical_levels=cfg["hierarchical"],
-        denoising_method=cfg["denoising_method"],
-        denoising_kernel_size=cfg["denoising_kernel_size"],
     )
     for cfg in COLOR_DESCRIPTORS_3D_CONFIGS
 ]
