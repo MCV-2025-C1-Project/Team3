@@ -19,7 +19,7 @@ TEXTURE_TECHNIQUES = {
     #},
 
     "DCT": {
-        "block_size": [4, 8, 16],
+        "block_size": [4],
         "top_k": [
             10, 20, 30
         ],

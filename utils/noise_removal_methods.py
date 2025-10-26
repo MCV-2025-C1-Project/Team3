@@ -35,12 +35,12 @@ def denoise_median_bilateral(img_bgr, k_y=3, k_cbcr=5, bilateral_d=5, sigma_colo
 
 
 
-def main_noise_removal(img: np.ndarray, denoising_method: str):
+def main_noise_removal(img: np.ndarray):
     ycc = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
     Y = ycc[:, :, 0].astype(np.float32)
     detected_noise,_ = estimate_noise_wavelet(Y)
 
     if detected_noise:
-        denoised_image = denoise_median_bilateral()
+        denoised_image = denoise_median_bilateral(img)
         return denoised_image
     return img
