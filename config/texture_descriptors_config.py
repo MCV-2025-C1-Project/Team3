@@ -10,20 +10,20 @@ from utils import metrics
 # Search space
 TEXTURE_TECHNIQUES = {
 
-    "LBP": {
-        "P": [4, 8, 16],
-        "R": [
-            1, 2, 3
-        ],
-        "method": ["default", "ror", "uniform", "nri_uniform"]
-    },
+    # "LBP": {
+    #     "P": [4, 8, 16],
+    #     "R": [
+    #         1, 2, 3
+    #     ],
+    #     "method": ["default", "ror", "uniform", "nri_uniform"]
+    # },
 
-    #"DCT": {
-    #    "block_size": [4, 8, 16],
-    #    "top_k": [
-    #        10, 20, 30
-    #    ],
-    #},
+    "DCT": {
+       "block_size": [4,],# 8, 16],
+       "top_k": [
+           30,#10, 20, 30
+       ],
+    },
 
     #"DWT": {
     #    "levels": [1, 2, 3],
@@ -112,4 +112,4 @@ PREDICTING_COLOR_DESCRIPTORS = [
     (PREDICT_COLOR_DESCRIPTORS[1], metrics.hellinger_kernel),
 ]
 '''
-PREDICTING_COLOR_DESCRIPTORS = [(ALL_TEXTURE_DESCRIPTORS[0], metrics.earth_movers_distance)]
+PREDICTING_TEXTURE_DESCRIPTORS = [(ALL_TEXTURE_DESCRIPTORS[0], metrics.canberra_distance)]
