@@ -17,6 +17,7 @@ from config.texture_descriptors_config import DEV_TEXTURE_DESCRIPTORS, DEV_TEXTU
 from utils.common import load_precomputed_descriptors
 from utils.noise_removal_methods import main_noise_removal
 from background_removal.main_background_removal import get_masks
+from utils.noise_removal_methods import main_noise_removal
 
 
 
@@ -29,6 +30,7 @@ def compute_development_descriptors(WANTED_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_
     for i in tqdm(range(NUMBER_IMAGE_DEV), desc="Dev images processed: "):
         image_path = io_config.dev_image_path(i)
         img = cv2.imread(image_path)
+        img = main_noise_removal(img)
         if general_config.REMOVE_BACKGROUND:
             log.info(f"Doing background removal for image: {image_path.name}, please be patient")
             img, mask = get_masks(img)
@@ -240,6 +242,11 @@ def run_dev():
 
             # Initialize a heap per dev image (store up to max_k best matches)
             heaps = [[] for _ in range(NUMBER_IMAGE_DEV)]  # each is a max-heap via (-score, db_idx)
+            
+            for dev_idx in range(NUMBER_IMAGE_DEV):
+                    images_descriptors = all_descriptors[dev_idx]
+                    if len(images_descriptors) == 2:
+                        heaps[dev_idx] = [[], []]
 
             # Stream DB once (HDF5)
             with h5py.File(db_file_path, "r") as h5f:
@@ -256,7 +263,7 @@ def run_dev():
                         #If image contains more than one painting, handle it
                         if len(images_descriptors) == 2:
                             # Initialize one heap per sub-image
-                            heaps[dev_idx] = [[], []]
+                            
                             #Do the same as in individual images per painting
                             for idx, image_descriptors in enumerate(images_descriptors):
                                 dev_vec = image_descriptors[desc_idx]
@@ -269,6 +276,7 @@ def run_dev():
                                     current_max = -h[0][0]
                                     if score < current_max:
                                         heapq.heapreplace(h, (-score, db_idx))
+                                        
                         else:
                             dev_vec = images_descriptors[desc_idx]
                             raw_score = dist_fn(dev_vec, db_vec)
@@ -298,6 +306,7 @@ def run_dev():
                             #Since we do not have one point for each subpainting, I guess that doing the average score between the two
                             #is good enough
                             descriptor_scores_sums[desc_idx, dist_idx, k_idx] += 0.5*score
+
                     continue
                 
                 sorted_entries = sorted(h, key=lambda x: -x[0])  # increasing score
