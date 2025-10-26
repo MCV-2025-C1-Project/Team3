@@ -10,20 +10,27 @@ from utils import metrics
 # Search space
 TEXTURE_TECHNIQUES = {
 
-    #"LBP": {
-    #    "P": [4, 8, 16],
-    #    "R": [
-    #        1, 2, 3
+    "LBP": {
+        "P": [4, 8, 16],
+        "R": [
+            1, 2, 3
+        ],
+        "method": ["default", "ror", "uniform", "nri_uniform"]
+    },
+
+    #"DCT": {
+    #    "block_size": [4, 8, 16],
+    #    "top_k": [
+    #        10, 20, 30
     #    ],
-    #    "method": ["default", "ror", "uniform", "nri_uniform", "var"]
     #},
 
-    "DCT": {
-        "block_size": [4],
-        "top_k": [
-            10, 20, 30
-        ],
-    },
+    #"DWT": {
+    #    "levels": [1, 2, 3],
+    #    "divisions": [4, 8, 16],
+    #    "top_k": [10, 20, 30],
+    #    "wavelet": ["haar", "db2", "sym2", "coif1"],
+    #},
 }
 
 # Grid search configs

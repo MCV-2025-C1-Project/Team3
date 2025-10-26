@@ -15,6 +15,7 @@ from config import io_config, general_config
 from config.color_descriptors_config import DEV_COLOR_DESCRIPTORS, DEV_COLOR_DESCRIPTOR_NAMES
 from config.texture_descriptors_config import DEV_TEXTURE_DESCRIPTORS, DEV_TEXTURE_DESCRIPTOR_NAMES
 from utils.common import load_precomputed_descriptors
+from utils.noise_removal_methods import main_noise_removal
 from background_removal.main_background_removal import get_masks
 from utils.noise_removal_methods import main_noise_removal
 
@@ -41,7 +42,10 @@ def compute_development_descriptors(WANTED_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_
                 all_descriptors.append(conjuct)
                 continue
             img = img[0]
-            
+
+        if general_config.REMOVE_NOISE:
+            img = main_noise_removal(img)
+
         image_descriptors = [f(img, NAME_OF_DEV_SET, i, visualize=False) for f in WANTED_DESCRIPTORS]
         all_descriptors.append(image_descriptors)
     return all_descriptors
@@ -172,7 +176,7 @@ def run_dev():
     NAME_OF_DEV_SET = io_config.DEV_NAME
 
     # Prepare names and files
-    descriptors_names = [f.__name__ for f in DEV_TEXTURE_DESCRIPTORS]
+    descriptors_names = [f.__name__ for f in DEV_COLOR_DESCRIPTORS]
     distances_names = [
         d[0].__name__ if isinstance(d, tuple) else d.__name__
         for d in general_config.WANTED_DISTANCES
@@ -224,12 +228,12 @@ def run_dev():
 
     # Compute descriptors for all dev images once (these are small compared to DB)
     log.info("Computing descriptors for all dev images (kept in memory)...")
-    all_descriptors = compute_development_descriptors(DEV_TEXTURE_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_IMAGE_DEV)
+    all_descriptors = compute_development_descriptors(DEV_COLOR_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_IMAGE_DEV)
 
     # For each descriptor type and distance, scan the DB file only once and update top-K heaps for every dev image
     for desc_idx, desc_name in enumerate(descriptors_names):
         log.info(f"Processing descriptor {desc_idx+1}/{len(descriptors_names)}: {desc_name}")
-        db_file_path = io_config.TEXTURE_DESC_DIR / f"{desc_name}.h5"
+        db_file_path = io_config.COLOR_DESC_DIR / f"{desc_name}.h5"
 
         # For each distance metric we will create per-dev heaps
         for dist_idx, dist_entry in enumerate(general_config.WANTED_DISTANCES):
