@@ -2,8 +2,8 @@ from utils import metrics
 
 # General execution parameters
 PRECOMPUTE = False       # Whether to compute DB descriptors
-DEV_PREDICTION = True   # Whether to run dev pipeline
-TEST_PREDICTION = False # Whether to run test pipeline
+DEV_PREDICTION = False   # Whether to run dev pipeline
+TEST_PREDICTION = True # Whether to run test pipeline
 
 
 TOP_K_TEST = 10
@@ -16,16 +16,16 @@ DESCRIPTORS = [#"COLOR_DESCRIPTORS",
 
 # Distance metrics
 WANTED_DISTANCES = [
-    metrics.euclidean_distance,
+    # metrics.euclidean_distance,
     metrics.x2_dist,
-    metrics.bhattacharyya_distance,
-    metrics.l1_distance,
+    # metrics.bhattacharyya_distance,
+    # metrics.l1_distance,
     (metrics.histogram_intersection, 1),
-    (metrics.hellinger_kernel, 1),
-    metrics.earth_movers_distance,
+    # (metrics.hellinger_kernel, 1),
+    # metrics.earth_movers_distance,
     metrics.canberra_distance,
 ]
 
-REMOVE_BACKGROUND = True
-SAVE_BACKGROUND_MASK = False
-APPLY_BACKGROUND_REMOVAL = True
+REMOVE_BACKGROUND = False
+SAVE_BACKGROUND_MASK = True
+APPLY_BACKGROUND_REMOVAL = False

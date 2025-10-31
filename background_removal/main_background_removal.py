@@ -72,16 +72,21 @@ def get_discriminative_mask(img):
 
     h, s, v = cv2.split(hsv_image)
     edges_s = compute_grad_magnitude(s)
+    edges_v = compute_grad_magnitude(v)
 
-    mask_s = edges_s
-    mask_s[mask_s < 75] = 0
+    mask_s = 0.5*edges_s + 0.5*edges_v
+    mask_s = np.uint8(mask_s)
+    mask_s[mask_s < 90] = 0
     mask_s[mask_s != 0] = 255
 
     mask = mask_s
     
+    # plt.imshow(mask,cmap='gray')
+    # plt.show()
 
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(10, 5)))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(5, 10)))
+    
 
     # plt.imshow(mask,cmap='gray')
     # plt.show()
@@ -91,11 +96,12 @@ def get_discriminative_mask(img):
     #For each label except background, get area and pick the two largest (possible two paintings)
     component_info = [(i, stats[i, 4]) for i in range(1, num_labels)]
     component_info.sort(key=lambda c: c[1], reverse=True)
-    top_two_labels = [c[0] for c in component_info[:2]]
+    top_two_labels = [c[0] for c in component_info[:4]]
 
     new_mask = np.zeros_like(mask)
 
     for label in top_two_labels:
+
         
         # Create a mask of only this component
         ys, xs = np.where(labels == label)
@@ -110,6 +116,7 @@ def get_discriminative_mask(img):
         
     # plt.imshow(new_mask,cmap='gray')
     # plt.show()  
+    
     
     return new_mask
 

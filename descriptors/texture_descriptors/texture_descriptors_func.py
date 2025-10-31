@@ -12,6 +12,7 @@ from pathlib import Path
 from skimage.feature import local_binary_pattern
 from scipy.fftpack import dctn
 from skimage.util import view_as_blocks
+import pywt
 
 
 def visualize_histogram(hist: NDArray[np.float32], name_of_the_set: str, histogram_name: str, image_number: int, channel_labels: list[str] = None,channel_sizes: list[int] = None) -> None:
@@ -92,10 +93,7 @@ def generic_texture_descriptor(descriptor_type: str,
     """
 
     def descriptor_fn(img: NDArray, name_of_the_set: str = "", image_number: int = 0, visualize: bool = False) -> NDArray:
-        
-        converted = img.copy()
-
-        
+                
         if descriptor_type == "LBP":
             hist = lbp_descriptor(
                 img,
@@ -107,6 +105,14 @@ def generic_texture_descriptor(descriptor_type: str,
             hist = dct_descriptor(
                 img,
                 divisions=descriptor_specific_parameters.get("block_size", 8),
+                top_k=descriptor_specific_parameters.get("top_k", 20)
+            )
+        elif descriptor_type == "DWT":
+            hist = dwt_descriptor(
+                img,
+                wavelet=descriptor_specific_parameters.get("wavelet", "db1"),
+                levels=descriptor_specific_parameters.get("levels", 2),
+                divisions=descriptor_specific_parameters.get("divisions", 8),
                 top_k=descriptor_specific_parameters.get("top_k", 20)
             )
             
@@ -134,51 +140,46 @@ def generic_texture_descriptor(descriptor_type: str,
 def lbp_descriptor(image, P=8, R=1, method='uniform'):
     """
     Compute LBP (Local Binary Pattern) descriptor for an image.
-
-    Parameters
-    ----------
-    image : ndarray
-            2D grayscale image or 3D color image (H, W) or (H, W, C)
-    P :     int
-            Number of circularly symmetric neighbor set points (default=8).
-    R :     int
-            Radius of circle (in pixels) (default=1).
-    method: Method for LBP. 
-            Options: 'default', 'ror', 'uniform', 'var' (default='uniform').
-
-    Returns
-    -------
-    hist : ndarray
-        Normalized histogram of LBP codes.
+    Returns a fixed-length histogram descriptor.
     """
-
-    # convert to numpy array
     img = np.asarray(image)
 
-    # Convert to grayscale
+    # Convert to grayscale if needed
     if img.ndim == 3:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    # Ensure integer dtype (uint8)
+    # Ensure uint8 dtype
     if not np.issubdtype(img.dtype, np.integer):
         img = (255 * (img / np.max(img))).astype(np.uint8) if img.max() > 1 else img.astype(np.uint8)
 
-
     lbp = local_binary_pattern(img, P, R, method=method)
 
-    # decide number of histogram bins according to method as recommended by skimage docs
+    # Fixed number of bins based on LBP method
     if method == 'uniform':
         n_bins = P + 2
+    elif method == 'nri_uniform':
+        n_bins = P * (P - 1) + 3
+    elif method == 'default' or method == 'ror':
+        n_bins = 2 ** P
     else:
-        n_bins = int(lbp.max() + 1) 
+        # Fallback: use max code + 1 (only if method is unusual)
+        n_bins = int(lbp.max() + 1)
 
+    # Build histogram with fixed number of bins
     hist, _ = np.histogram(lbp.ravel(), bins=np.arange(0, n_bins + 1), density=False)
     hist = hist.astype(np.float32)
-    # normalize histogram
+
+    # Normalize
     s = hist.sum()
     if s > 0:
         hist = hist / s
+
+    # Ensure fixed length (safety padding)
+    if hist.shape[0] != n_bins:
+        hist = np.pad(hist, (0, n_bins - hist.shape[0]))
+
     return hist
+
 
 def zigzag_indices(h, w):
     indices = []
@@ -256,3 +257,102 @@ def dct_descriptor(image, divisions=8, top_k=20):
     desc /= np.sum(desc) + 1e-8
 
     return desc
+
+
+
+def dwt_descriptor(image, wavelet='db1', levels=2, divisions=8, top_k=20):
+    """
+    Compute DWT (Discrete Wavelet Transform) descriptor for an image.
+
+    The descriptor is based on multi-level 2D wavelet decomposition, which captures
+    texture and intensity variations at multiple scales and orientations.
+
+    Parameters
+    ----------
+    image : ndarray
+        2D grayscale image or 3D color image.
+    wavelet : str
+        Type of wavelet to use (e.g., 'db1', 'haar', 'sym2', 'coif1').
+    levels : int
+        Number of decomposition levels for DWT.
+    divisions : int
+        Number of image blocks to divide the image into before computing DWT.
+    top_k : int
+        Number of largest coefficients (by absolute value) to keep per block.
+
+    Returns
+    -------
+    desc : ndarray
+        1D normalized DWT-based texture descriptor.
+    """
+
+    # Convert to numpy array
+    img = np.asarray(image)
+
+    # Convert to grayscale if needed
+    if img.ndim == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # Resize for consistency
+    img = cv2.resize(img, (256, 256))
+    img = img.astype(np.float32)
+
+    h, w = img.shape
+
+    # Divide the image into non-overlapping blocks
+    block_h = h // divisions
+    block_w = w // divisions
+
+    # Crop to full blocks to avoid mismatch
+    h_crop = (h // block_h) * block_h
+    w_crop = (w // block_w) * block_w
+    h_start = (h - h_crop) // 2
+    w_start = (w - w_crop) // 2
+    img = img[h_start:h_start + h_crop, w_start:w_start + w_crop]
+
+    # Split image into blocks
+    blocks = view_as_blocks(img, block_shape=(block_h, block_w))
+    blocks = blocks.reshape(-1, block_h, block_w)
+
+    desc_list = []
+
+    # Process each block
+    for block in blocks:
+        # Perform multi-level 2D wavelet decomposition
+        coeffs = pywt.wavedec2(block, wavelet=wavelet, level=levels)
+
+        # Flatten all sub-bands into one array of coefficients
+        all_coeffs = []
+        for c in coeffs:
+            if isinstance(c, tuple):
+                # (LH, HL, HH)
+                for subband in c:
+                    all_coeffs.append(np.abs(subband).ravel())
+            else:
+                # LL approximation
+                all_coeffs.append(np.abs(c).ravel())
+
+        all_coeffs = np.concatenate(all_coeffs)
+
+        # Take top-k largest coefficients (energy-based)
+        if len(all_coeffs) > top_k:
+            top_values = np.partition(all_coeffs, -top_k)[-top_k:]
+        else:
+            top_values = all_coeffs
+
+        # Sort top coefficients for consistency
+        top_values = np.sort(top_values)[::-1]
+
+        # Normalize block descriptor
+        top_values /= np.sum(top_values) + 1e-8
+
+        desc_list.append(top_values)
+
+    # Concatenate all block descriptors
+    desc = np.concatenate(desc_list)
+
+    # Global normalization
+    desc /= np.sum(desc) + 1e-8
+
+    return desc
+
