@@ -5,7 +5,7 @@ Grid search generation + named configs for clarity.
 
 from itertools import product, combinations
 from descriptors.color_descriptors import color_descriptors_func as descriptors
-from utils import metrics
+from utils import global_metrics
 
 # Search space
 COLOR_SPACES = {
@@ -247,4 +247,4 @@ PREDICTING_COLOR_DESCRIPTORS = [
     (PREDICT_COLOR_DESCRIPTORS[1], metrics.hellinger_kernel),
 ]
 '''
-PREDICTING_COLOR_DESCRIPTORS = [(ALL_COLOR_DESCRIPTORS[0], metrics.earth_movers_distance)]
+PREDICTING_COLOR_DESCRIPTORS = [(ALL_COLOR_DESCRIPTORS[0], global_metrics.earth_movers_distance)]

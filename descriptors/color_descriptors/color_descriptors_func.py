@@ -213,7 +213,10 @@ def generic_color_descriptor(color_space: str,
             )
 
 
-        return final_hist
+        return {
+            "type": "global",
+            "descriptors": final_hist
+        }
 
     descriptor_fn.__name__ = (
     f"{color_space}_{'_'.join(channels)}"
@@ -342,7 +345,10 @@ def generic_color_descriptor_2d(
                 channel_sizes=[final_hist.size],
             )
 
-        return final_hist
+        return {
+            "type": "global",
+            "descriptors": final_hist
+        }
 
     descriptor_fn.__name__ = (
         f"{color_space}_{'_'.join(channels)}_2d"
@@ -479,7 +485,10 @@ def generic_color_descriptor_3d(
                 channel_sizes=[final_hist.size],
             )
 
-        return final_hist
+        return {
+            "type": "global",
+            "descriptors": final_hist
+        }
 
     descriptor_fn.__name__ = (
         f"{color_space}_{'_'.join(channels)}_3d"

@@ -10,10 +10,11 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import h5py
 
-from utils import metrics
+from utils import global_metrics
 from config import io_config, general_config
 from config.color_descriptors_config import DEV_COLOR_DESCRIPTORS, DEV_COLOR_DESCRIPTOR_NAMES
 from config.texture_descriptors_config import DEV_TEXTURE_DESCRIPTORS, DEV_TEXTURE_DESCRIPTOR_NAMES
+from config.keypoint_descriptors_config import DEV_KEYPOINT_DESCRIPTORS, DEV_KEYPOINT_DESCRIPTOR_NAMES
 from utils.common import load_precomputed_descriptors
 from utils.noise_removal_methods import main_noise_removal
 from background_removal.main_background_removal import get_masks
@@ -46,23 +47,6 @@ def compute_development_descriptors(WANTED_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_
         image_descriptors = [f(img, NAME_OF_DEV_SET, i, visualize=False) for f in WANTED_DESCRIPTORS]
         all_descriptors.append(image_descriptors)
     return all_descriptors
-
-def compute_distances(all_descriptors, precomputed_descriptors, WANTED_DISTANCES):
-    """Compute distances between dev and BBDD descriptors."""
-    all_metrics = []
-    for objective_image in all_descriptors:
-        image_metrics = []
-        for idx, descriptor in enumerate(objective_image):
-            found_metrics = []
-            objective_descriptors = precomputed_descriptors[idx]
-            for distance_function in WANTED_DISTANCES:
-                if isinstance(distance_function, tuple):
-                    distance_function = distance_function[0]
-                distances = [distance_function(descriptor, obj) for obj in objective_descriptors]
-                found_metrics.append(distances)
-            image_metrics.append(found_metrics)
-        all_metrics.append(image_metrics)
-    return all_metrics
 
 
 def write_results(all_metrics, ground_truth, descriptors_names, distances_names, K=5, store = io_config.STORE_RESULTS_TXT_BY_DESCRIPTOR):
@@ -110,7 +94,7 @@ def resume_results(all_metrics, ground_truth, descriptors_names, distances_names
                     if isinstance(wanted_distances[distance_type], tuple):
                         distances = 1 / (distances + 1e-16)
                     predictions = np.argsort(distances)[:eval_k]
-                    score = metrics.average_precision_k(ground_truth[image_num], predictions, eval_k)
+                    score = global_metrics.average_precision_k(ground_truth[image_num], predictions, eval_k)
                     descriptor_scores[descriptor_type][distance_type] += score
 
         # Media por descriptor-distancia
@@ -151,7 +135,6 @@ def resume_results(all_metrics, ground_truth, descriptors_names, distances_names
 
 
 
-
 def run_dev():
     """
     Run the complete development pipeline:
@@ -173,11 +156,56 @@ def run_dev():
     NAME_OF_DEV_SET = io_config.DEV_NAME
 
     # Prepare names and files
-    descriptors_names = [f.__name__ for f in DEV_TEXTURE_DESCRIPTORS]
-    distances_names = [
-        d[0].__name__ if isinstance(d, tuple) else d.__name__
-        for d in general_config.WANTED_DISTANCES
-    ]
+    descriptors_names = [f.__name__ for f in DEV_KEYPOINT_DESCRIPTORS]
+
+    # Build unified distance / matcher list:
+    #  - from general_config.WANTED_DISTANCES (global)
+    #  - attempt to import local matchers from utils.local_matchers (local)
+    ALL_DISTANCE_ENTRIES = []
+
+    # --- Global distances from general_config.WANTED_DISTANCES ---
+    for d in general_config.WANTED_DISTANCES:
+        if isinstance(d, tuple):
+            fn = d[0]
+            name = fn.__name__
+            is_tuple = True
+        else:
+            fn = d
+            name = fn.__name__
+            is_tuple = False
+        ALL_DISTANCE_ENTRIES.append({
+            "name": name,
+            "fn": fn,
+            "kind": "global",
+            "is_tuple": is_tuple
+        })
+
+    # --- Local matchers (try to import user-provided matchers) ---
+    try:
+        from config.general_config import LOCAL_DISTANCES, LOCAL_DISTANCES_NAMES
+        for fn, name in zip(LOCAL_DISTANCES, LOCAL_DISTANCES_NAMES):
+            ALL_DISTANCE_ENTRIES.append({
+                "name": name,
+                "fn": fn,
+                "kind": "local",
+                "is_tuple": False
+            })
+    except Exception:
+        # Fallback: try to import specific functions by name (common)
+        try:
+            from utils.local_metrics import (
+                sift_match_count,
+                sift_match_normalized,
+                sift_match_geometric
+            )
+            ALL_DISTANCE_ENTRIES.append({"name": "match_count", "fn": sift_match_count, "kind": "local", "is_tuple": False})
+            ALL_DISTANCE_ENTRIES.append({"name": "match_normalized", "fn": sift_match_normalized, "kind": "local", "is_tuple": False})
+            ALL_DISTANCE_ENTRIES.append({"name": "match_geometric", "fn": sift_match_geometric, "kind": "local", "is_tuple": False})
+        except Exception:
+            log.warning("Local matchers not found in utils.local_matchers — local matching will not be available.")
+            # no local matchers available
+
+    distances_names = [entry["name"] for entry in ALL_DISTANCE_ENTRIES]
 
     # Prepare result files (one per descriptor) if configured
     store = io_config.STORE_RESULTS_TXT_BY_DESCRIPTOR
@@ -195,89 +223,125 @@ def run_dev():
 
     eps = 1e-16
 
-    def stream_top_k_indices(descriptor_vec, db_file_path, distance_fn, is_tuple, K):
-        """Stream DB descriptors from file and keep K smallest scores (following previous code's inversion for tuple metrics). Returns indices sorted by score asc."""
-        heap = []  # will store (-score, db_index) to maintain max-heap of smallest scores
-        with open(db_file_path, "r") as fh:
-            for db_idx, line in enumerate(fh):
-                try:
-                    db_vec = np.fromstring(line, sep=" ")
-                except Exception:
-                    continue
-                raw_score = distance_fn(db_vec, descriptor_vec) if not is_tuple else distance_fn(db_vec, descriptor_vec)
-                # In original code, when distance was a tuple they later inverted by 1/(distances+eps)
-                score = raw_score
-                if is_tuple:
-                    # raw_score here is a similarity; make it comparable with distances by inversion
-                    score = 1.0 / (raw_score + eps)
-
-                if len(heap) < K:
-                    heapq.heappush(heap, (-score, db_idx))
-                else:
-                    current_max = -heap[0][0]
-                    if score < current_max:
-                        heapq.heapreplace(heap, (-score, db_idx))
-
-        # Extract indices sorted by increasing score
-        sorted_entries = sorted(heap, key=lambda x: -x[0])
-        top_indices = [entry[1] for entry in sorted_entries]
-        return top_indices
-
     # Compute descriptors for all dev images once (these are small compared to DB)
     log.info("Computing descriptors for all dev images (kept in memory)...")
-    all_descriptors = compute_development_descriptors(DEV_TEXTURE_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_IMAGE_DEV)
+    all_descriptors = compute_development_descriptors(DEV_KEYPOINT_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_IMAGE_DEV)
 
-    # For each descriptor type and distance, scan the DB file only once and update top-K heaps for every dev image
+    # For each descriptor type (file) scan the DB once and update per-dev heaps for every distance entry of matching kind
     for desc_idx, desc_name in enumerate(descriptors_names):
         log.info(f"Processing descriptor {desc_idx+1}/{len(descriptors_names)}: {desc_name}")
-        db_file_path = io_config.TEXTURE_DESC_DIR / f"{desc_name}.h5"
+        db_file_path = io_config.KEYPOINT_DESC_DIR / f"{desc_name}.h5"
 
-        # For each distance metric we will create per-dev heaps
-        for dist_idx, dist_entry in enumerate(general_config.WANTED_DISTANCES):
-            dist_fn = dist_entry[0] if isinstance(dist_entry, tuple) else dist_entry
-            is_tuple = isinstance(dist_entry, tuple)
+        # Open HDF5 once for this descriptor
+        with h5py.File(db_file_path, "r") as h5f:
+            # Try to obtain number of images from attributes or infer from groups
+            if "num_images" in h5f.attrs:
+                num_db_entries = int(h5f.attrs["num_images"])
+            else:
+                # count groups starting with 'img_'
+                num_db_entries = len([k for k in h5f.keys() if str(k).startswith("img_")])
 
-            # Initialize a heap per dev image (store up to max_k best matches)
-            heaps = [[] for _ in range(NUMBER_IMAGE_DEV)]  # each is a max-heap via (-score, db_idx)
-            
-            for dev_idx in range(NUMBER_IMAGE_DEV):
+            # For each distance entry we will create per-dev heaps (only if kind matches this descriptor's type)
+            for dist_idx, dist_entry in enumerate(ALL_DISTANCE_ENTRIES):
+                dist_kind = dist_entry["kind"]
+                dist_fn = dist_entry["fn"]
+                is_tuple = dist_entry.get("is_tuple", False)
+
+                # Determine whether this descriptor (desc_idx) is local or global by inspecting first dev descriptor that is not a multi-painting sentinel
+                # Find first dev image that has this descriptor available
+                sample_desc = None
+                for sample_img_descs in all_descriptors:
+                    # handle multi-painting dev images
+                    if isinstance(sample_img_descs, list) and len(sample_img_descs) == 2 and isinstance(sample_img_descs[0], list):
+                        # structure: [left_descriptors, right_descriptors]
+                        # take the left descriptor for this desc_idx
+                        sample_desc = sample_img_descs[0][desc_idx]
+                        break
+                    else:
+                        sample_desc = sample_img_descs[desc_idx]
+                        break
+
+                if sample_desc is None:
+                    log.warning("No sample dev descriptor found — skipping dist entry.")
+                    continue
+
+                sample_kind = sample_desc.get("type", "global") if isinstance(sample_desc, dict) else "global"
+
+                # If distance kind doesn't match descriptor kind => skip (we don't want to compute local matcher over global vector)
+                if dist_kind != sample_kind:
+                    continue
+
+                # Initialize a heap per dev image (store up to max_k best matches)
+                heaps = [[] for _ in range(NUMBER_IMAGE_DEV)]
+                for dev_idx in range(NUMBER_IMAGE_DEV):
                     images_descriptors = all_descriptors[dev_idx]
-                    if len(images_descriptors) == 2:
+                    if isinstance(images_descriptors, list) and len(images_descriptors) == 2:
+                        # multi-painting (conjuct) -> one heap per subimage
                         heaps[dev_idx] = [[], []]
 
-            # Stream DB once (HDF5)
-            with h5py.File(db_file_path, "r") as h5f:
-                db_dataset = h5f["descriptors"]
-                num_db_entries = db_dataset.shape[0]
-
+                # Stream DB entries
                 for db_idx in tqdm(range(num_db_entries), desc=f"Scanning DB for {desc_name} / {dist_idx}", unit="entries", leave=False):
-                    db_vec = db_dataset[db_idx]  # Each descriptor is a NumPy array of shape (7680,)
+                    # read group for this db entry
+                    gname = f"img_{db_idx:05d}"
+                    if gname not in h5f:
+                        # skip missing
+                        continue
+                    grp = h5f[gname]
 
-                    # For each dev image compute distance and update its heap
+                    # build db descriptor dict in same format as dev descriptors
+                    if "keypoints" in grp and "descriptors" in grp:
+                        db_kps = np.asarray(grp["keypoints"], dtype=np.float32)
+                        db_descs = np.asarray(grp["descriptors"], dtype=np.float32)
+                        db_entry = {"type": "local", "keypoints": db_kps, "descriptors": db_descs}
+                    elif "descriptors" in grp:
+                        db_vec = np.asarray(grp["descriptors"], dtype=np.float32)
+                        db_entry = {"type": "global", "descriptors": db_vec}
+                    else:
+                        # unknown layout -> skip this entry
+                        continue
+
+                    # For each dev image compute distance / similarity and update heap
                     for dev_idx in range(NUMBER_IMAGE_DEV):
                         images_descriptors = all_descriptors[dev_idx]
-                        
-                        #If image contains more than one painting, handle it
-                        if len(images_descriptors) == 2:
-                            # Initialize one heap per sub-image
-                            
-                            #Do the same as in individual images per painting
-                            for idx, image_descriptors in enumerate(images_descriptors):
-                                dev_vec = image_descriptors[desc_idx]
-                                raw_score = dist_fn(dev_vec, db_vec)
-                                score = raw_score if not is_tuple else 1.0 / (raw_score + eps)
-                                h = heaps[dev_idx][idx]
+
+                        # multi-painting case
+                        if isinstance(images_descriptors, list) and len(images_descriptors) == 2:
+                            for sub_i, image_descriptors in enumerate(images_descriptors):
+                                dev_entry = image_descriptors[desc_idx]
+                                # If types mismatch (unexpected), skip
+                                if dev_entry.get("type", "global") != dist_kind:
+                                    continue
+
+                                # Compute raw_score: for global distances it's "distance" (lower better).
+                                # For local matchers we expect similarity (higher better) -> convert to distance by invert.
+                                if dist_kind == "global":
+                                    # dist_fn expects (vec1, vec2) or similar; preserve original is_tuple semantics
+                                    raw_score = dist_fn(dev_entry["descriptors"], db_entry["descriptors"])
+                                    score = raw_score if not is_tuple else 1.0 / (raw_score + eps)
+                                else:  # local
+                                    # dist_fn returns similarity (higher better); convert to distance
+                                    raw_sim = dist_fn(dev_entry, db_entry)
+                                    score = 1.0 / (raw_sim + eps)
+
+                                h = heaps[dev_idx][sub_i]
                                 if len(h) < max_k:
                                     heapq.heappush(h, (-score, db_idx))
                                 else:
                                     current_max = -h[0][0]
                                     if score < current_max:
                                         heapq.heapreplace(h, (-score, db_idx))
-                                        
+
                         else:
-                            dev_vec = images_descriptors[desc_idx]
-                            raw_score = dist_fn(dev_vec, db_vec)
-                            score = raw_score if not is_tuple else 1.0 / (raw_score + eps)
+                            dev_entry = images_descriptors[desc_idx]
+                            if dev_entry.get("type", "global") != dist_kind:
+                                continue
+
+                            if dist_kind == "global":
+                                raw_score = dist_fn(dev_entry["descriptors"], db_entry["descriptors"])
+                                score = raw_score if not is_tuple else 1.0 / (raw_score + eps)
+                            else:
+                                raw_sim = dist_fn(dev_entry, db_entry)
+                                score = 1.0 / (raw_sim + eps)
 
                             h = heaps[dev_idx]
                             if len(h) < max_k:
@@ -287,50 +351,46 @@ def run_dev():
                                 if score < current_max:
                                     heapq.heapreplace(h, (-score, db_idx))
 
-            # After scanning DB, extract top-K for each dev image and compute AP@k
-            for dev_idx in range(NUMBER_IMAGE_DEV):
-                h = heaps[dev_idx]
-                
-                #If image contains more than one painting, handle it
-                if isinstance(h[0], list):
-                    #Do the same as in individual images but for each painting in the image
-                    for idx, heap in enumerate(h):
-                        sorted_entries = sorted(heap, key=lambda x: -x[0])
-                        top_indices = [entry[1] for entry in sorted_entries]
-                        for k_idx, eval_k in enumerate(eval_ks):
-                            preds_k = top_indices[:eval_k]
-                            score = metrics.average_precision_k([ground_truth[dev_idx][idx]], preds_k, eval_k)
-                            #Since we do not have one point for each subpainting, I guess that doing the average score between the two
-                            #is good enough
-                            descriptor_scores_sums[desc_idx, dist_idx, k_idx] += 0.5*score
+                # After scanning DB for this distance entry, extract top-K for each dev image and compute AP@k
+                for dev_idx in range(NUMBER_IMAGE_DEV):
+                    h = heaps[dev_idx]
 
-                    continue
-                
-                sorted_entries = sorted(h, key=lambda x: -x[0])  # increasing score
-                top_indices = [entry[1] for entry in sorted_entries]
+                    # multi-painting handling
+                    if isinstance(h[0], list):
+                        for idx_sub, heap in enumerate(h):
+                            sorted_entries = sorted(heap, key=lambda x: -x[0])
+                            top_indices = [entry[1] for entry in sorted_entries]
+                            for k_idx, eval_k in enumerate(eval_ks):
+                                preds_k = top_indices[:eval_k]
+                                # ground_truth for subpainting is inside list
+                                score = global_metrics.average_precision_k([ground_truth[dev_idx][idx_sub]], preds_k, eval_k)
+                                descriptor_scores_sums[desc_idx, dist_idx, k_idx] += 0.5 * score
+                        continue
 
-                # optionally write textual results
+                    sorted_entries = sorted(h, key=lambda x: -x[0])  # increasing score order
+                    top_indices = [entry[1] for entry in sorted_entries]
+
+                    # optionally write textual results
+                    if store:
+                        f_out = result_files[desc_idx]
+                        f_out.write(f"Image: {dev_idx:05d}.jpg\n")
+                        f_out.write(f"Ground truth: {ground_truth[dev_idx]}\n\n")
+                        distance_name = distances_names[dist_idx]
+                        f_out.write(f"With distance: {distance_name}\n")
+                        f_out.write(f"Top {max_k} images:\n")
+                        np.savetxt(f_out, np.array(top_indices)[None], fmt="%d")
+                        f_out.write("--------------------------------------------------------------\n")
+
+                    # accumulate AP@k scores
+                    for k_idx, eval_k in enumerate(eval_ks):
+                        preds_k = top_indices[:eval_k]
+                        score = global_metrics.average_precision_k(ground_truth[dev_idx], preds_k, eval_k)
+                        descriptor_scores_sums[desc_idx, dist_idx, k_idx] += score
+
+                # optionally mark separator in result files
                 if store:
                     f_out = result_files[desc_idx]
-                    f_out.write(f"Image: {dev_idx:05d}.jpg\n")
-                    f_out.write(f"Ground truth: {ground_truth[dev_idx]}\n\n")
-                    distance_name = distances_names[dist_idx]
-                    f_out.write(f"With distance: {distance_name}\n")
-                    f_out.write(f"Top {max_k} images:\n")
-                    np.savetxt(f_out, np.array(top_indices)[None], fmt="%d")
-                    f_out.write("--------------------------------------------------------------\n")
-
-                # accumulate AP@k scores
-                for k_idx, eval_k in enumerate(eval_ks):
-                    preds_k = top_indices[:eval_k]
-                    score = metrics.average_precision_k(ground_truth[dev_idx], preds_k, eval_k)
-                    descriptor_scores_sums[desc_idx, dist_idx, k_idx] += score
-
-            # close block for this distance
-            if store:
-                # mark separator between distances per descriptor
-                f_out = result_files[desc_idx]
-                f_out.write("==============================================================\n")
+                    f_out.write("==============================================================\n")
 
     # Close result files
     if result_files:

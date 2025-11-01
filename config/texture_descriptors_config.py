@@ -5,31 +5,51 @@ Grid search generation + named configs for clarity.
 
 from itertools import product, combinations
 from descriptors.texture_descriptors import texture_descriptors_func as descriptors
-from utils import metrics
+from utils import global_metrics
 
 # Search space
 TEXTURE_TECHNIQUES = {
 
-    # "LBP": {
-    #     "P": [4, 8, 16],
-    #     "R": [
-    #         1, 2, 3
-    #     ],
-    #     "method": ["default", "ror", "uniform", "nri_uniform"]
-    # },
+    #"LBP": {
+    #    "P": [4, 8, 16],
+    #    "R": [
+    #        #1,
+    #        #2,
+    #        3
+    #    ],
+    #    "method": [
+    #        "default",
+    #        #"ror",
+    #        #"uniform",
+    #        #"nri_uniform"
+    #    ]
+    #},
 
     "DCT": {
-       "block_size": [4,],# 8, 16],
-       "top_k": [
-           30,#10, 20, 30
-       ],
+        "block_size": [
+            #4, 
+            #8,
+            16
+        ],
+        "top_k": [
+            10, 20, 30
+        ],
     },
 
     #"DWT": {
-    #    "levels": [1, 2, 3],
+    #    "levels": [
+    #        #1,
+    #        #2,
+    #        3
+    #        ],
     #    "divisions": [4, 8, 16],
     #    "top_k": [10, 20, 30],
-    #    "wavelet": ["haar", "db2", "sym2", "coif1"],
+    #    "wavelet": [
+    #        "haar",
+    #        #"db2",
+    #        #"sym2",
+    #        #"coif1"
+    #        ],
     #},
 }
 
@@ -112,4 +132,4 @@ PREDICTING_COLOR_DESCRIPTORS = [
     (PREDICT_COLOR_DESCRIPTORS[1], metrics.hellinger_kernel),
 ]
 '''
-PREDICTING_TEXTURE_DESCRIPTORS = [(ALL_TEXTURE_DESCRIPTORS[0], metrics.canberra_distance)]
+PREDICTING_TEXTURE_DESCRIPTORS = [(ALL_TEXTURE_DESCRIPTORS[0], global_metrics.canberra_distance)]
