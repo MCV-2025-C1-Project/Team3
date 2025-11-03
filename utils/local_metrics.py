@@ -1,3 +1,4 @@
+# utils/local_metrics.py
 import cv2
 import numpy as np
 import math
@@ -5,55 +6,100 @@ import math
 RATIO_TEST = 0.75
 
 
-def get_matcher(distance_type="L2", crossCheck=False):
-    """
-    Create a BFMatcher according to the distance type.
-    Accepted values: "L2", "L1", "L2SQR", "HAMMING", "HAMMING2"
-    """
-    distance_type = distance_type.upper()
-    norm_map = {
-        "L1": cv2.NORM_L1,
-        "L2": cv2.NORM_L2,
-        "L2SQR": cv2.NORM_L2SQR,
-        "HAMMING": cv2.NORM_HAMMING,
-        "HAMMING2": cv2.NORM_HAMMING2
-    }
-    norm = norm_map.get(distance_type, cv2.NORM_L2)
-    return cv2.BFMatcher(norm, crossCheck=crossCheck)
-
-
 def _extract_descs(d):
     """
-    Extract descriptors and keypoints arrays.
+    Extract descriptor and keypoint arrays WITHOUT forcing dtype for descriptors.
     Returns: (descs, kps)
+      - descs: np.ndarray (N, D), dtype can be float32 (SIFT/SURF) or uint8 (ORB/BRISK/AKAZE)
+      - kps:   np.ndarray (N, 2) with [x, y] or (0, 2) if not present
     """
     descs = d.get("descriptors", None)
     kps = d.get("keypoints", None)
-    if descs is None:
-        return np.zeros((0, 128), dtype=np.float32), np.zeros((0, 4), dtype=np.float32)
-    return np.asarray(descs, dtype=np.float32), np.asarray(kps, dtype=np.float32) if kps is not None else np.zeros((0, 4), dtype=np.float32)
+
+    if descs is None or len(descs) == 0:
+        return np.zeros((0, 128)), np.zeros((0, 2), dtype=np.float32)
+
+    # Keep original dtype for descriptors (very important!)
+    descs = np.asarray(descs)
+
+    # Keypoints as float32 [x, y] (trim if more columns exist)
+    if kps is None or len(kps) == 0:
+        kps = np.zeros((0, 2), dtype=np.float32)
+    else:
+        kps = np.asarray(kps, dtype=np.float32)
+        if kps.shape[1] >= 2:
+            kps = kps[:, :2]
+        else:
+            tmp = np.zeros((kps.shape[0], 2), dtype=np.float32)
+            tmp[:, :kps.shape[1]] = kps
+            kps = tmp
+
+    return descs, kps
 
 
-# Basic matcher — no Lowe ratio
-def sift_match_basic(dev_desc, db_desc, distance_type="L2"):
+def _infer_norm_from_dtype(des):
     """
-    Basic matching: count of raw matches (no Lowe ratio).
+    Choose the correct OpenCV norm based on descriptor dtype.
+      - uint8  -> HAMMING
+      - others -> L2
     """
-    des1, _ = _extract_descs(dev_desc)
-    des2, _ = _extract_descs(db_desc)
-
-    if des1.size == 0 or des2.size == 0:
-        return 0.0
-
-    BF = get_matcher(distance_type)
-    matches = BF.match(des1, des2)
-    return float(len(matches))
+    return cv2.NORM_HAMMING if des.dtype == np.uint8 else cv2.NORM_L2
 
 
-# Lowe ratio — raw count
+def _norm_from_string(distance_type):
+    """
+    Map a string name to an OpenCV norm. Defaults to L2.
+    """
+    distance_type = (distance_type or "L2").upper()
+    mapping = {
+        "L1": cv2.NORM_L1,
+        "L2": cv2.NORM_L2,
+        "HAMMING": cv2.NORM_HAMMING,
+    }
+    return mapping.get(distance_type, cv2.NORM_L2), distance_type
+
+
+def _get_safe_matcher(des1, des2, distance_type=None, for_knn=True):
+    """
+    Build a BFMatcher with a norm that is compatible with descriptor dtype.
+    - If the requested distance_type conflicts with dtype, prefer dtype-inferred norm.
+    - crossCheck must be False when using knnMatch (ratio test), True only for match().
+    """
+    wanted_norm, _ = _norm_from_string(distance_type)
+    inferred_norm = _infer_norm_from_dtype(des1)
+
+    # Prefer inferred norm from dtype to avoid OpenCV assertion failures.
+    norm = inferred_norm
+
+    # If the requested norm is compatible with inferred, accept it (e.g., HAMMING2 vs HAMMING, L2 vs L1/L2SQR)
+    if wanted_norm in (cv2.NORM_HAMMING, cv2.NORM_HAMMING2) and inferred_norm == cv2.NORM_HAMMING:
+        norm = wanted_norm
+    elif wanted_norm in (cv2.NORM_L2, cv2.NORM_L2SQR, cv2.NORM_L1) and inferred_norm == cv2.NORM_L2:
+        norm = wanted_norm
+
+    cross_check = False if for_knn else True
+    return cv2.BFMatcher(norm, crossCheck=cross_check)
+
+
+def _knn_with_fallback(des1, des2, k=2, distance_type=None):
+    """
+    Run knnMatch with a safe matcher. If OpenCV fails, retry with dtype-inferred norm.
+    """
+    BF = _get_safe_matcher(des1, des2, distance_type=distance_type, for_knn=True)
+    try:
+        return BF.knnMatch(des1, des2, k=k)
+    except cv2.error:
+        BF = cv2.BFMatcher(_infer_norm_from_dtype(des1), crossCheck=False)
+        return BF.knnMatch(des1, des2, k=k)
+
+
+
+# ----------------------------- Local matching metrics -----------------------------
+
 def sift_match_count(dev_desc, db_desc, distance_type="L2"):
     """
-    Count of good matches (Lowe ratio). Returns integer count (as float).
+    Raw count of 'good matches' after Lowe's ratio test (k=2).
+    Returns float for pipeline consistency.
     """
     des1, _ = _extract_descs(dev_desc)
     des2, _ = _extract_descs(db_desc)
@@ -61,8 +107,8 @@ def sift_match_count(dev_desc, db_desc, distance_type="L2"):
     if des1.size == 0 or des2.size == 0:
         return 0.0
 
-    BF = get_matcher(distance_type)
-    matches = BF.knnMatch(des1, des2, k=2)
+    matches = _knn_with_fallback(des1, des2, k=2, distance_type=distance_type)
+
     good = 0
     for m_n in matches:
         if len(m_n) < 2:
@@ -70,14 +116,14 @@ def sift_match_count(dev_desc, db_desc, distance_type="L2"):
         m, n = m_n
         if m.distance < RATIO_TEST * n.distance:
             good += 1
+
     return float(good)
 
 
-# Normalized score
 def sift_match_normalized(dev_desc, db_desc, distance_type="L2"):
     """
-    Normalized score: good_matches / sqrt(N1 * N2)
-    Useful when number of keypoints varies a lot.
+    Normalized score: good_matches / sqrt(N1 * N2).
+    Helpful when images have very different keypoint counts.
     """
     des1, _ = _extract_descs(dev_desc)
     des2, _ = _extract_descs(db_desc)
@@ -86,8 +132,8 @@ def sift_match_normalized(dev_desc, db_desc, distance_type="L2"):
     if n1 == 0 or n2 == 0:
         return 0.0
 
-    BF = get_matcher(distance_type)
-    matches = BF.knnMatch(des1, des2, k=2)
+    matches = _knn_with_fallback(des1, des2, k=2, distance_type=distance_type)
+
     good = 0
     for m_n in matches:
         if len(m_n) < 2:
@@ -96,24 +142,24 @@ def sift_match_normalized(dev_desc, db_desc, distance_type="L2"):
         if m.distance < RATIO_TEST * n.distance:
             good += 1
 
-    denom = math.sqrt(n1 * n2)
+    denom = math.sqrt(max(n1, 1) * max(n2, 1))
     return float(good) / denom if denom > 0 else 0.0
 
 
-# Geometric verification (RANSAC)
-def sift_match_geometric(dev_desc, db_desc, distance_ftype="L2", reproj_thresh=5.0):
+def sift_match_geometric(dev_desc, db_desc, distance_type="L2", reproj_thresh=5.0):
     """
-    Lowe ratio + RANSAC-based geometric check.
-    Returns number of inliers (higher = better). If fails returns 0.
+    Lowe's ratio (k=2) + geometric verification via RANSAC homography.
+    Returns the number of inliers (higher = better). Returns 0 if it fails.
+    Requires valid keypoint coordinates in both dev_desc and db_desc.
     """
     des1, kp1 = _extract_descs(dev_desc)
     des2, kp2 = _extract_descs(db_desc)
 
-    if des1.size == 0 or des2.size == 0 or kp1.size == 0 or kp2.size == 0:
+    if des1.size == 0 or des2.size == 0 or kp1.shape[0] == 0 or kp2.shape[0] == 0:
         return 0.0
 
-    BF = get_matcher(distance_type)
-    matches = BF.knnMatch(des1, des2, k=2)
+    matches = _knn_with_fallback(des1, des2, k=2, distance_type=distance_type)
+
     good_matches = []
     for m_n in matches:
         if len(m_n) < 2:
@@ -125,8 +171,9 @@ def sift_match_geometric(dev_desc, db_desc, distance_ftype="L2", reproj_thresh=5
     if len(good_matches) < 4:
         return 0.0
 
-    src_pts = np.float32([kp1[m.queryIdx, :2] for m in good_matches]).reshape(-1, 1, 2)
-    dst_pts = np.float32([kp2[m.trainIdx, :2] for m in good_matches]).reshape(-1, 1, 2)
+    # Build point arrays (N, 1, 2) for cv2.findHomography
+    src_pts = np.float32([kp1[m.queryIdx] for m in good_matches]).reshape(-1, 1, 2)
+    dst_pts = np.float32([kp2[m.trainIdx] for m in good_matches]).reshape(-1, 1, 2)
 
     H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, reproj_thresh)
     if H is None or mask is None:

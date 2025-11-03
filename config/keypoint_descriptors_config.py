@@ -6,33 +6,30 @@ Grid search generation + named configs for clarity.
 from itertools import product, combinations
 import descriptors.keypoint_descriptors.keypoint_descriptors_func as descriptors
 from utils import global_metrics
-from utils.local_metrics import sift_match_basic, sift_match_count, sift_match_normalized, sift_match_geometric
+from utils.local_metrics import sift_match_count, sift_match_normalized, sift_match_geometric
+from pipeline.descriptor_creator import sanitize_filename
 
 # Search space
 KEYPOINT_TECHNIQUES = {
 
     "sift": {
-        "sigma": [1.2, 1.6],
-        "edgeThreshold": [6,8, 10],
-        "nOctaveLayers": [3, 5],
+        "sigma": [1.2, 1.4, 1.6, 1.8],
     },
     "orb": {
-        "nfeatures": [500, 1000],
-        "fastThreshold": [10, 20],
+        "nfeatures": [500, 750, 1000, 1500],
     },
     "color_sift": {
-        "sigma": [1.4, 1.6],
-        "edgeThreshold": [6,8, 10],
-        "nOctaveLayers": [3, 5],
+        "sigma": [1.2, 1.4, 1.6, 1.8],
     },
 }
 
 LOCAL_DISTANCES = [
-    sift_match_basic,
     sift_match_count,
     sift_match_normalized,
     sift_match_geometric
 ]
+
+THRESHOLDS_TO_DISCARD = [1,5,10,15,20,25,30,35,40]
 
 
 
@@ -83,7 +80,10 @@ INDIVIDUAL_KEYPOINT_DESCRIPTORS = [
     for cfg in KEYPOINT_DESCRIPTORS_CONFIGS
 ]
 
-INDIVIDUAL_KEYPOINT_DESCRIPTORS_NAMES = [cfg["name"] for cfg in KEYPOINT_DESCRIPTORS_CONFIGS]
+
+INDIVIDUAL_KEYPOINT_DESCRIPTORS_NAMES = [
+    sanitize_filename(cfg["name"]) for cfg in KEYPOINT_DESCRIPTORS_CONFIGS
+]
 
 
 # Final lists

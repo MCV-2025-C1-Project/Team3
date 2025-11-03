@@ -1,8 +1,8 @@
 from utils import global_metrics
 
 # General execution parameters
-PRECOMPUTE = False       # Whether to compute DB descriptors
-DEV_PREDICTION = True   # Whether to run dev pipeline
+PRECOMPUTE = True       # Whether to compute DB descriptors
+DEV_PREDICTION = False   # Whether to run dev pipeline
 TEST_PREDICTION = False # Whether to run test pipeline
 
 
