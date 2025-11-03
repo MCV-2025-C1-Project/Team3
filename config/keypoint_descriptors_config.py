@@ -6,6 +6,7 @@ Grid search generation + named configs for clarity.
 from itertools import product, combinations
 import descriptors.keypoint_descriptors.keypoint_descriptors_func as descriptors
 from utils import global_metrics
+from utils.local_metrics import sift_match_basic, sift_match_count, sift_match_normalized, sift_match_geometric
 
 # Search space
 KEYPOINT_TECHNIQUES = {
@@ -25,6 +26,16 @@ KEYPOINT_TECHNIQUES = {
         "nOctaveLayers": [3, 5],
     },
 }
+
+LOCAL_DISTANCES = [
+    sift_match_basic,
+    sift_match_count,
+    sift_match_normalized,
+    sift_match_geometric
+]
+
+
+
 
 # Grid search configs
 KEYPOINT_DESCRIPTORS_CONFIGS = []

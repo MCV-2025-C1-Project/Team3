@@ -1,8 +1,7 @@
 from utils import global_metrics
-from utils.local_metrics import sift_match_count, sift_match_normalized, sift_match_geometric
 
 # General execution parameters
-PRECOMPUTE = True       # Whether to compute DB descriptors
+PRECOMPUTE = False       # Whether to compute DB descriptors
 DEV_PREDICTION = True   # Whether to run dev pipeline
 TEST_PREDICTION = False # Whether to run test pipeline
 
@@ -26,13 +25,6 @@ WANTED_DISTANCES = [
     (global_metrics.hellinger_kernel, 1),
     global_metrics.earth_movers_distance,
     global_metrics.canberra_distance,
-]
-
-
-LOCAL_DISTANCES = [
-    sift_match_count,
-    sift_match_normalized,
-    sift_match_geometric
 ]
 
 LOCAL_DISTANCES_NAMES = ["match_count", "match_normalized", "match_geometric"]
