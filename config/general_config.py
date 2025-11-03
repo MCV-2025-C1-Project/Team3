@@ -1,9 +1,10 @@
-from utils import metrics
+from utils import global_metrics
+from utils.local_metrics import sift_match_count, sift_match_normalized, sift_match_geometric
 
 # General execution parameters
-PRECOMPUTE = False       # Whether to compute DB descriptors
+PRECOMPUTE = True       # Whether to compute DB descriptors
 DEV_PREDICTION = False   # Whether to run dev pipeline
-TEST_PREDICTION = True # Whether to run test pipeline
+TEST_PREDICTION = False # Whether to run test pipeline
 
 
 TOP_K_TEST = 10
@@ -11,21 +12,31 @@ K_VALUES = [1,5]
 
 # Descriptor families to use
 DESCRIPTORS = [#"COLOR_DESCRIPTORS",
-               "TEXTURE_DESCRIPTORS",
+               #"TEXTURE_DESCRIPTORS",
+               "KEYPOINT_DESCRIPTORS"
             ]
 
 # Distance metrics
 WANTED_DISTANCES = [
-    # metrics.euclidean_distance,
-    metrics.x2_dist,
-    # metrics.bhattacharyya_distance,
-    # metrics.l1_distance,
-    (metrics.histogram_intersection, 1),
-    # (metrics.hellinger_kernel, 1),
-    # metrics.earth_movers_distance,
-    metrics.canberra_distance,
+    global_metrics.euclidean_distance,
+    global_metrics.x2_dist,
+    global_metrics.bhattacharyya_distance,
+    global_metrics.l1_distance,
+    (global_metrics.histogram_intersection, 1),
+    (global_metrics.hellinger_kernel, 1),
+    global_metrics.earth_movers_distance,
+    global_metrics.canberra_distance,
 ]
 
-REMOVE_BACKGROUND = False
-SAVE_BACKGROUND_MASK = True
-APPLY_BACKGROUND_REMOVAL = False
+
+LOCAL_DISTANCES = [
+    sift_match_count,
+    sift_match_normalized,
+    sift_match_geometric
+]
+
+LOCAL_DISTANCES_NAMES = ["match_count", "match_normalized", "match_geometric"]
+
+REMOVE_BACKGROUND = True
+SAVE_BACKGROUND_MASK = False
+APPLY_BACKGROUND_REMOVAL = True

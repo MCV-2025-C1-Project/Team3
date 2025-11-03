@@ -7,7 +7,10 @@ import numpy as np
 from config import io_config, general_config
 from tqdm import tqdm
 import h5py
+import re
 
+def sanitize_filename(name: str) -> str:
+    return re.sub(r'[^a-zA-Z0-9._-]', '_', name)
 
 
 def precompute_descriptors():
@@ -32,6 +35,13 @@ def precompute_descriptors():
             "dir": io_config.TEXTURE_DESC_DIR
         }
 
+    if "KEYPOINT_DESCRIPTORS" in general_config.DESCRIPTORS:
+        from config.keypoint_descriptors_config import PRECOMPUTED_KEYPOINT_DESCRIPTORS
+        ALL_BLOCKS["KEYPOINT_DESCRIPTORS"] = {
+            "descriptors": PRECOMPUTED_KEYPOINT_DESCRIPTORS,
+            "dir": io_config.KEYPOINT_DESC_DIR
+        }
+
     # Ensure output directories exist
     io_config.ensure_dirs()
 
@@ -44,42 +54,37 @@ def precompute_descriptors():
 
         # For each descriptor type, open a separate HDF5 file
         for name, function in zip(names, data["descriptors"]):
-            file_path = data["dir"] / f"{name}.h5"
+            safe_name = sanitize_filename(name)
+            file_path = data["dir"] / f"{safe_name}.h5"
 
             with h5py.File(file_path, "w") as f:
-                first_image_path = io_config.db_image_path(0)
-                first_img = cv2.imread(first_image_path)
-                first_img = cv2.resize(first_img, (256, 256))
+                # create a group-level index attribute with number of images
+                f.attrs["num_images"] = image_number
 
-                # Get descriptor shape from first image
-                first_descriptor = function(first_img, io_config.DB_NAME, 0, visualize=False)
-                descriptor_size = first_descriptor.shape[0]
+                for i in tqdm(range(image_number), desc=f"Computing {name}"):
+                    img_path = io_config.db_image_path(i)
+                    img = cv2.imread(img_path)
 
-                # Create dataset once
-                dset = f.create_dataset(
-                    "descriptors",
-                    shape=(image_number, descriptor_size),
-                    dtype=np.float64,
-                    compression="gzip"
-                )
+                    desc_info = function(img, io_config.DB_NAME, i, visualize=False)
+                    gname = f"img_{i:05d}"
+                    grp = f.create_group(gname)
 
-                # Store first descriptor
-                dset[0] = first_descriptor
+                    if desc_info["type"] == "local":
+                        kp_arr = desc_info.get("keypoints", np.zeros((0, 4), dtype=np.float32)).astype(np.float32)
+                        desc_arr = desc_info.get("descriptors", np.zeros((0, 128), dtype=np.float32)).astype(np.float32)
 
-                # Process the rest of the images
-                for i in tqdm(range(1, image_number), desc=f"Processing {name}"):
-                    image_path = io_config.db_image_path(i)
-                    img = cv2.imread(image_path)
-                    img = cv2.resize(img, (256, 256))
+                        # Save datasets (variable first dimension)
+                        grp.create_dataset("keypoints", data=kp_arr, compression="gzip")
+                        grp.create_dataset("descriptors", data=desc_arr, compression="gzip")
 
-                    descriptor = function(
-                        img,
-                        io_config.DB_NAME,
-                        i,
-                        visualize=io_config.STORE_HISTOGRAMS
-                    )
+                    elif desc_info["type"] == "global":
+                        desc_arr = np.asarray(desc_info["descriptors"], dtype=np.float32)
+                        # store single dataset 'descriptors' per image for consistency
+                        grp.create_dataset("descriptors", data=desc_arr, compression="gzip")
 
-                    dset[i] = descriptor
+                    else:
+                        raise ValueError(f"Unknown descriptor type: {desc_info.get('type')}")
+            print(f"[precompute] saved {file_path}")
 
 
             

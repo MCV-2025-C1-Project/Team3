@@ -128,7 +128,10 @@ def generic_texture_descriptor(descriptor_type: str,
                     channel_labels=[descriptor_type],
                     channel_sizes=[len(hist)]
                 )
-        return hist
+        return {
+            "type": "global",
+            "descriptors": hist
+        }
         
 
     descriptor_fn.__name__ = f"{descriptor_type}_{descriptor_specific_parameters}"

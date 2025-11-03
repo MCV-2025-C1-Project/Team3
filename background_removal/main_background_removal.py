@@ -4,7 +4,6 @@ import numpy as np
 from tqdm import tqdm
 from config import background_removal_config, io_config
 from background_removal.removal_v2 import run_image_v2
-from background_removal.ray_background_removal import get_brackground_mask
 import matplotlib.pyplot as plt
 
 

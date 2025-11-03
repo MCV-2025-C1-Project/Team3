@@ -3,3 +3,4 @@ data/
 results/
 __pycache__/
 test/
+descriptors/keypoint_descriptors/stored_keypoint_descriptors/
