@@ -3,7 +3,7 @@ from utils.local_metrics import sift_match_count, sift_match_normalized, sift_ma
 
 # General execution parameters
 PRECOMPUTE = True       # Whether to compute DB descriptors
-DEV_PREDICTION = False   # Whether to run dev pipeline
+DEV_PREDICTION = True   # Whether to run dev pipeline
 TEST_PREDICTION = False # Whether to run test pipeline
 
 
