@@ -13,14 +13,27 @@ from pipeline.descriptor_creator import sanitize_filename
 KEYPOINT_TECHNIQUES = {
 
     "sift": {
-        "sigma": [1.2, 1.4, 1.6, 1.8],
+        "sigma": [1.2, 
+                  1.4,
+                  1.6,
+                  1.8
+                ],
     },
-    "orb": {
-        "nfeatures": [500, 750, 1000, 1500],
-    },
-    "color_sift": {
-        "sigma": [1.2, 1.4, 1.6, 1.8],
-    },
+    #"orb": {
+    #    "nfeatures": [500, 
+    #                  750,
+    #                  1000,
+    ##                  1500
+    #                ],
+    #},
+    #"color_sift": {
+    #    "sigma": [
+    #        1.2,
+    ##        1.4,
+    #        1.6,
+    #        1.8
+    #    ],
+    #},
 }
 
 LOCAL_DISTANCES = [
@@ -29,7 +42,17 @@ LOCAL_DISTANCES = [
     sift_match_geometric
 ]
 
-THRESHOLDS_TO_DISCARD = [1,5,10,15,20,25,30,35,40]
+THRESHOLDS_TO_DISCARD = [
+    #1,
+    5,
+    10,
+    15,
+    #20,
+    #25,
+    30,
+    #35,
+    #40
+    ]
 
 
 

@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 
 # Data dir
 DB_NAME = "BBDD"
-DEV_NAME = "qsd1_w4" if REMOVE_BACKGROUND else "qsd1_w3"
+DEV_NAME = "qsd1_w4" if REMOVE_BACKGROUND else "qsd1_w4"
 TEST_NAME = "qst2_w3" if REMOVE_BACKGROUND else "qst1_w3"
 
 DATA_DIR = BASE_DIR / "data"

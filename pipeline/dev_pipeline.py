@@ -28,26 +28,41 @@ log = logging.getLogger(__name__)
 
 
 def compute_development_descriptors(WANTED_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_IMAGE_DEV):
-    """Compute descriptors for all dev set images."""
+    """Compute descriptors for all dev set images (standardized output)."""
+
     all_descriptors = []
+
     for i in tqdm(range(NUMBER_IMAGE_DEV), desc="Dev images processed: "):
         image_path = io_config.dev_image_path(i)
         img = cv2.imread(image_path)
         img = main_noise_removal(img)
+
         if general_config.REMOVE_BACKGROUND:
             log.info(f"Doing background removal for image: {image_path.name}, please be patient")
             img, mask = get_masks(img)
-            
+
+            # Two paintings
             if len(img) == 2:
-                left_descriptors = [f(img[0], NAME_OF_DEV_SET, i, visualize=False) for f in WANTED_DESCRIPTORS]
-                right_descriptors = [f(img[1], NAME_OF_DEV_SET, i, visualize=False) for f in WANTED_DESCRIPTORS]
-                conjuct = [left_descriptors, right_descriptors]
-                all_descriptors.append(conjuct)
+                left_descs = [f(img[0], NAME_OF_DEV_SET, i, visualize=False) for f in WANTED_DESCRIPTORS]
+                right_descs = [f(img[1], NAME_OF_DEV_SET, i, visualize=False) for f in WANTED_DESCRIPTORS]
+
+                all_descriptors.append({
+                    "num_parts": 2,
+                    "parts": [left_descs, right_descs]
+                })
                 continue
+
+            # Single painting: unwrap
             img = img[0]
 
-        image_descriptors = [f(img, NAME_OF_DEV_SET, i, visualize=False) for f in WANTED_DESCRIPTORS]
-        all_descriptors.append(image_descriptors)
+        # Normal case (no background split)
+        descs = [f(img, NAME_OF_DEV_SET, i, visualize=False) for f in WANTED_DESCRIPTORS]
+
+        all_descriptors.append({
+            "num_parts": 1,
+            "parts": [descs]
+        })
+
     return all_descriptors
 
 
@@ -158,7 +173,7 @@ def run_dev():
     descriptors_names = [f.__name__ for f in DEV_KEYPOINT_DESCRIPTORS]
     ALL_DISTANCE_ENTRIES = []
 
-    # Global distances
+    # Global distances (unchanged)
     for d in general_config.WANTED_DISTANCES:
         if isinstance(d, tuple):
             fn = d[0]; name = fn.__name__; is_tuple = True
@@ -168,7 +183,7 @@ def run_dev():
             "name": name, "fn": fn, "kind": "global", "is_tuple": is_tuple
         })
 
-    # Local matchers
+    # Local matchers (unchanged)
     try:
         from utils.local_metrics import (
             sift_match_count,
@@ -198,21 +213,94 @@ def run_dev():
     max_k = max(eval_ks)
     eps = 1e-16
 
-    # Compute dev descriptors
+    # === Compute dev descriptors (kept in memory) ===
     log.info("Computing descriptors for all dev images (kept in memory)...")
-    all_descriptors = compute_development_descriptors(DEV_KEYPOINT_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_IMAGE_DEV)
+    raw_all_descriptors = compute_development_descriptors(DEV_KEYPOINT_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_IMAGE_DEV)
+
+    # === Flatten dev descriptors into queries (I2 / ID_A) ===
+    # Each query: { "orig_idx": i, "id": "img_XXXXX" or "img_XXXXX_L", "descs": [desc_dicts...], "gt": [...] }
+    queries = []
+    for i, entry in enumerate(raw_all_descriptors):
+        base_id = f"img_{i:05d}"
+        gt_item = ground_truth[i]
+
+        if isinstance(entry, dict) and entry.get("num_parts", 1) == 2:
+            # entry['parts'] == [left_descs, right_descs]
+            left_descs, right_descs = entry["parts"][0], entry["parts"][1]
+
+            # GT mapping: now ground_truth is a flat list (GT1/flat)
+            # handle many GT shapes robustly:
+            left_gt = [-1]
+            right_gt = [-1]
+
+            if isinstance(gt_item, list):
+                if len(gt_item) >= 2:
+                    # flat list with two entries -> left and right
+                    left_gt = gt_item[0] if isinstance(gt_item[0], list) else [gt_item[0]]
+                    right_gt = gt_item[1] if isinstance(gt_item[1], list) else [gt_item[1]]
+                elif len(gt_item) == 1:
+                    # single GT provided -> assign to both halves
+                    left_gt = right_gt = gt_item
+            elif isinstance(gt_item, int):
+                left_gt = right_gt = [gt_item]
+            else:
+                # fallback: unknown format -> ignore
+                left_gt = [-1]
+                right_gt = [-1]
+
+            queries.append({
+                "orig_idx": i,
+                "id": f"{base_id}_L",
+                "descs": left_descs,
+                "gt": left_gt
+            })
+            queries.append({
+                "orig_idx": i,
+                "id": f"{base_id}_R",
+                "descs": right_descs,
+                "gt": right_gt
+            })
+        else:
+            # Single part: entry['parts'] == [descs]
+            if isinstance(entry, dict) and "parts" in entry:
+                descs = entry["parts"][0]
+            else:
+                # fallback if older format: assume entry is a list of descriptors
+                descs = entry
+
+            # Normalize GT for single image: ensure a list
+            if isinstance(gt_item, list):
+                gt_norm = gt_item
+            elif isinstance(gt_item, int):
+                gt_norm = [gt_item]
+            else:
+                gt_norm = [-1]
+
+            queries.append({
+                "orig_idx": i,
+                "id": base_id,
+                "descs": descs,
+                "gt": gt_norm
+            })
+
+    query_count = len(queries)
+    log.info(f"Prepared {query_count} queries from {NUMBER_IMAGE_DEV} dev images (including splits).")
 
     rows = []
 
-    # Main loop
+    # === Main loop: per descriptor type (desc_idx) we scan DB file for that descriptor ===
     for desc_idx, desc_name in enumerate(descriptors_names):
         safe_name = sanitize_filename(desc_name)
-        
         print(f"DESC NAME: {desc_name}")
 
         db_file_path = io_config.KEYPOINT_DESC_DIR / f"{safe_name}.h5"
+        if not db_file_path.exists():
+            log.warning(f"DB file not found for descriptor {desc_name}: {db_file_path}")
+            continue
+
+        # For each distance entry, we will compute heaps per query
         with h5py.File(db_file_path, "r") as h5f:
-            num_db_entries = h5f.attrs.get("num_images", len([k for k in h5f.keys() if str(k).startswith("img_")]))
+            num_db_entries = int(h5f.attrs.get("num_images", len([k for k in h5f.keys() if str(k).startswith("img_")])))
 
             for dist_idx, dist_entry in enumerate(ALL_DISTANCE_ENTRIES):
                 dist_kind = dist_entry["kind"]
@@ -220,83 +308,145 @@ def run_dev():
                 is_tuple = dist_entry.get("is_tuple", False)
                 distance_type = dist_entry.get("distance_type", "L2")
 
-                 # Initialize heaps (single heap per dev image)
-                heaps = [[] for _ in range(NUMBER_IMAGE_DEV)]
+                # Determine whether to skip this distance entry based on descriptor kind:
+                # Inspect a sample dev descriptor for this desc_idx to see its type
+                sample_desc = None
+                # find first query that has this descriptor index available
+                for q in queries:
+                    descs = q["descs"]
+                    if desc_idx < len(descs):
+                        sample_desc = descs[desc_idx]
+                        break
+                if sample_desc is None:
+                    log.warning(f"No sample dev descriptor for desc_idx={desc_idx}, skipping {dist_entry['name']}")
+                    continue
+                sample_kind = sample_desc.get("type", "global") if isinstance(sample_desc, dict) else "global"
+                if sample_kind != dist_kind:
+                    # mismatch type (e.g., local matcher vs global descriptor) -> skip
+                    continue
 
-                # Scan DB entries
+                # Initialize heap per query (store top max_k scores). Use min-heap, keep highest scores.
+                heaps = [[] for _ in range(query_count)]  # each heap stores tuples (score, db_idx)
+
+                # Stream DB and update heaps
                 for db_idx in tqdm(range(num_db_entries), desc=f"{desc_name}/{dist_entry['name']}", leave=False):
                     gname = f"img_{db_idx:05d}"
                     if gname not in h5f:
                         continue
                     grp = h5f[gname]
+
+                    # Build db_entry dict same format as dev entries
                     if "keypoints" in grp and "descriptors" in grp:
-                        db_entry = {"type": "local", "keypoints": np.asarray(grp["keypoints"], np.float32),
-                                    "descriptors": np.asarray(grp["descriptors"], np.float32)}
+                        db_entry = {"type": "local",
+                                    "keypoints": np.asarray(grp["keypoints"], dtype=np.float32),
+                                    "descriptors": np.asarray(grp["descriptors"], dtype=np.float32)}
                     elif "descriptors" in grp:
-                        db_entry = {"type": "global", "descriptors": np.asarray(grp["descriptors"], np.float32)}
+                        db_entry = {"type": "global",
+                                    "descriptors": np.asarray(grp["descriptors"], dtype=np.float32)}
                     else:
                         continue
 
-                    for dev_idx in range(NUMBER_IMAGE_DEV):
-                        img_descs = all_descriptors[dev_idx]
-                        if isinstance(img_descs, list) and len(img_descs) == 2:
-                            img_descs = img_descs[0]
-                        dev_entry = img_descs[desc_idx]
+                    # For each query compute score and update heap
+                    for q_idx, q in enumerate(queries):
+                        descs = q["descs"]
+                        # if this descriptor index is missing for this query (shouldn't happen) skip
+                        if desc_idx >= len(descs):
+                            continue
+                        dev_entry = descs[desc_idx]
+                        # type guard
                         if dev_entry.get("type", "global") != dist_kind:
                             continue
-                        score = dist_fn(dev_entry, db_entry, distance_type=distance_type) if dist_kind == "local" else -dist_fn(dev_entry["descriptors"], db_entry["descriptors"])
-                        print(score)
-                        h = heaps[dev_idx]
+
+                        # Compute raw score:
+                        # - For global distances: dist_fn returns distance (lower better) -> invert sign or use negative
+                        # - For tuple-based distance (similarity), follow is_tuple semantics
+                        # - For local matchers: dist_fn returns similarity (higher better)
+                        if dist_kind == "global":
+                            # keep same behavior as original: use negative distance so that larger is better
+                            try:
+                                raw_val = dist_fn(dev_entry["descriptors"], db_entry["descriptors"])
+                            except Exception:
+                                raw_val = float("inf")
+                            score = -raw_val if not is_tuple else (1.0 / (raw_val + eps))
+                        else:
+                            # local matcher: may expect additional argument distance_type
+                            try:
+                                raw_sim = dist_fn(dev_entry, db_entry, distance_type=distance_type)
+                            except TypeError:
+                                # fallback if matcher ignores distance_type
+                                raw_sim = dist_fn(dev_entry, db_entry)
+                            except Exception:
+                                raw_sim = 0.0
+                            # convert similarity (higher better) into score directly (we keep higher better)
+                            score = float(raw_sim)
+
+                        h = heaps[q_idx]
                         if len(h) < max_k:
                             heapq.heappush(h, (score, db_idx))
                         else:
+                            # h is min-heap by score; if new score greater than smallest, replace
                             if score > h[0][0]:
                                 heapq.heapreplace(h, (score, db_idx))
 
-                # Prepare scores/labels for F1 evaluation
-                match_scores, labels = [], []
-                for dev_idx in range(NUMBER_IMAGE_DEV):
-                    gt = ground_truth[dev_idx]
+                # After scanning DB, evaluate heaps: compute match_scores vector and labels
+                match_scores = []
+                labels = []
+                # Also prepare per-query sorted entries for AP@K
+                per_query_sorted_indices = [None] * query_count
+
+                for q_idx, q in enumerate(queries):
+                    gt = q["gt"]
+                    # If GT indicates ignore: skip in metrics
                     if gt == [-1]:
+                        per_query_sorted_indices[q_idx] = []
                         continue
-                    h = heaps[dev_idx]
-                    score = 0
-                    if isinstance(h, list) and len(h) > 0:
-                         if isinstance(h[0], list):
-                             candidates = []
-                             for sub in h:
-                                 if isinstance(sub, list) and len(sub) > 0:
-                                     candidates.append(max(sub, key=lambda x: x[0])[0])
-                             if len(candidates) > 0:
-                                 score = max(candidates)
-                         else:
-                             score = max(h, key=lambda x: x[0])[0]
-                    match_scores.append(score)
+
+                    h = heaps[q_idx]
+                    if not h:
+                        best_score = 0.0
+                        sorted_indices = []
+                    else:
+                        # sorted in descending score order
+                        sorted_entries = sorted(h, key=lambda x: -x[0])
+                        best_score = sorted_entries[0][0]
+                        sorted_indices = [e[1] for e in sorted_entries]
+
+                    match_scores.append(best_score)
                     labels.append(1 if gt != [-1] else 0)
+                    per_query_sorted_indices[q_idx] = sorted_indices
 
-                match_scores = np.array(match_scores)
-                labels = np.array(labels)
+                # Convert to numpy arrays for threshold evaluation
+                if len(match_scores) > 0:
+                    match_scores_arr = np.array(match_scores)
+                    labels_arr = np.array(labels)
+                else:
+                    match_scores_arr = np.array([])
+                    labels_arr = np.array([])
 
-                # Evaluate across multiple thresholds
+                # Evaluate across multiple thresholds (F1)
                 thresholds = keypoint_descriptors_config.THRESHOLDS_TO_DISCARD
                 for t in thresholds:
-                    y_pred = (match_scores >= t).astype(int)
-                    _, _, f1, _ = precision_recall_fscore_support(labels, y_pred, average='binary', zero_division=0)
+                    if match_scores_arr.size == 0:
+                        f1 = 0.0
+                    else:
+                        y_pred = (match_scores_arr >= t).astype(int)
+                        _, _, f1, _ = precision_recall_fscore_support(labels_arr, y_pred, average='binary', zero_division=0)
 
-                    # Compute mAPs 
+                    # Compute mAPs across queries (AP@K)
                     descriptor_scores_sums = np.zeros(len(eval_ks))
                     count_valid = 0
-                    for dev_idx in range(NUMBER_IMAGE_DEV):
-                        gt = ground_truth[dev_idx]
+                    for q_idx, q in enumerate(queries):
+                        gt = q["gt"]
                         if gt == [-1]:
                             continue
-                        sorted_entries = sorted(heaps[dev_idx], key=lambda x: -x[0])
-                        top_indices = [e[1] for e in sorted_entries]
+                        sorted_indices = per_query_sorted_indices[q_idx]
+                        # ensure list
+                        if sorted_indices is None:
+                            sorted_indices = []
                         for k_idx, eval_k in enumerate(eval_ks):
-                            preds_k = top_indices[:eval_k]
-                            score = global_metrics.average_precision_k(gt, preds_k, eval_k)
-                            print(score)
-                            descriptor_scores_sums[k_idx] += score
+                            preds_k = sorted_indices[:eval_k]
+                            score_ap = global_metrics.average_precision_k(gt, preds_k, eval_k)
+                            descriptor_scores_sums[k_idx] += score_ap
                         count_valid += 1
 
                     if count_valid > 0:
@@ -304,18 +454,23 @@ def run_dev():
                         rows.append({
                             "descriptor": desc_name,
                             "distance": dist_entry["name"],
-                            "distance_type": distance_type,
+                            "distance_type": dist_entry.get("distance_type", "N/A"),
                             "threshold": float(t),
                             "mAP@1": avg_scores[0],
-                            "mAP@5": avg_scores[1],
-                            "mean_mAP": np.mean(avg_scores),
+                            "mAP@5": avg_scores[1] if len(avg_scores) > 1 else avg_scores[0],
+                            "mean_mAP": float(np.mean(avg_scores)),
                             "F1": float(f1)
                         })
+                # end thresholds loop
+
+            # end distance entries loop
+
+        # end with h5f
 
     # Save CSV
     df = pd.DataFrame(rows)
     df = df.sort_values(by=["descriptor", "distance", "distance_type", "threshold"])
+    io_config.RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     df.to_csv(io_config.RESULTS_DIR / "dev_scores_all_thresholds.csv", index=False)
     log.info(f"✅ Results saved to {io_config.RESULTS_DIR}/dev_scores_all_thresholds.csv (with F1 for all thresholds)")
     log.info("✅ Development pipeline completed successfully with F1 evaluation.")
-
