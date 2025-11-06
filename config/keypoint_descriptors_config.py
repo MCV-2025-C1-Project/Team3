@@ -12,20 +12,20 @@ from pipeline.descriptor_creator import sanitize_filename
 # Search space
 KEYPOINT_TECHNIQUES = {
 
-    "sift": {
-        "sigma": [1.2, 
-                  1.4,
-                  1.6,
-                  1.8
-                ],
+    # "sift": {
+    #     "sigma": [1.2, 
+    #               1.4,
+    #               1.6,
+    #               1.8
+    #             ],
+    # },
+    "orb": {
+       "nfeatures": [500, 
+                    #  750,
+                    #  1000,
+    #                  1500
+                   ],
     },
-    #"orb": {
-    #    "nfeatures": [500, 
-    #                  750,
-    #                  1000,
-    ##                  1500
-    #                ],
-    #},
     #"color_sift": {
     #    "sigma": [
     #        1.2,

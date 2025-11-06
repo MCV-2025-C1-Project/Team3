@@ -171,6 +171,7 @@ def run_dev():
 
     # === Prepare descriptors and distances ===
     descriptors_names = [f.__name__ for f in DEV_KEYPOINT_DESCRIPTORS]
+    orb = "orb" == descriptors_names[0][:3]
     ALL_DISTANCE_ENTRIES = []
 
     # Global distances (unchanged)
@@ -198,6 +199,10 @@ def run_dev():
         distance_types = ["L2", "L1", "HAMMING"]
         for name, fn in local_matchers:
             for d_type in distance_types:
+                if orb and (d_type != "HAMMING"):
+                    continue
+                if not orb and (d_type == "HAMMING"):
+                    continue
                 ALL_DISTANCE_ENTRIES.append({
                     "name": f"{name}_{d_type}",
                     "fn": fn,
@@ -339,7 +344,7 @@ def run_dev():
                     if "keypoints" in grp and "descriptors" in grp:
                         db_entry = {"type": "local",
                                     "keypoints": np.asarray(grp["keypoints"], dtype=np.float32),
-                                    "descriptors": np.asarray(grp["descriptors"], dtype=np.float32)}
+                                    "descriptors": np.asarray(grp["descriptors"])}
                     elif "descriptors" in grp:
                         db_entry = {"type": "global",
                                     "descriptors": np.asarray(grp["descriptors"], dtype=np.float32)}
@@ -375,7 +380,8 @@ def run_dev():
                             except TypeError:
                                 # fallback if matcher ignores distance_type
                                 raw_sim = dist_fn(dev_entry, db_entry)
-                            except Exception:
+                            except Exception as e:
+                                print("Error")
                                 raw_sim = 0.0
                             # convert similarity (higher better) into score directly (we keep higher better)
                             score = float(raw_sim)

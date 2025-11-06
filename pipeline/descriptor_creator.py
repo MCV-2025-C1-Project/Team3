@@ -56,6 +56,9 @@ def precompute_descriptors():
         for name, function in zip(names, data["descriptors"]):
             safe_name = sanitize_filename(name)
             file_path = data["dir"] / f"{safe_name}.h5"
+            type_used = np.float32
+            if safe_name[:3] == "orb":
+                type_used = np.uint8
 
             with h5py.File(file_path, "w") as f:
                 # create a group-level index attribute with number of images
@@ -71,7 +74,7 @@ def precompute_descriptors():
 
                     if desc_info["type"] == "local":
                         kp_arr = desc_info.get("keypoints", np.zeros((0, 4), dtype=np.float32)).astype(np.float32)
-                        desc_arr = desc_info.get("descriptors", np.zeros((0, 128), dtype=np.float32)).astype(np.float32)
+                        desc_arr = desc_info.get("descriptors", np.zeros((0, 128), dtype=type_used)).astype(type_used)
 
                         # Save datasets (variable first dimension)
                         grp.create_dataset("keypoints", data=kp_arr, compression="gzip")
