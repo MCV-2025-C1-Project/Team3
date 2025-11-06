@@ -188,7 +188,6 @@ def average_precision_k(ground_truth: list, predicted: list, k: int) -> float:
     """
     score = 0.0
     num_hits = 0.0
-    print(ground_truth)
     for i, p in enumerate(predicted[:k]):
         if p in ground_truth:
             num_hits += 1

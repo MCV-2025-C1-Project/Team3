@@ -142,7 +142,7 @@ def sift_descriptor(img: np.ndarray, params):
         params = {}
 
     sift = cv2.SIFT_create(
-        nfeatures=params.get("nfeatures", 0),
+        nfeatures=params.get("nfeatures", 500),
         nOctaveLayers=params.get("nOctaveLayers", 3),
         contrastThreshold=params.get("contrastThreshold", 0.04),
         edgeThreshold=params.get("edgeThreshold", 10),
