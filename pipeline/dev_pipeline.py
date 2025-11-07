@@ -421,8 +421,6 @@ def run_dev():
                                 best_score = sorted_entries[0][0]
 
                                 if unknown_detection_type["type"] == "threshold":
-                                    print(q_idx, " QUERY ID: ", q["id"])
-                                    print("BEST SCORE: ", best_score, " THRESHOLD: ", t)
                                     if best_score < t:
                                         
                                         predicted_unknown = True
@@ -434,7 +432,6 @@ def run_dev():
                                             predicted_unknown = True
 
                             if predicted_unknown:
-                                print("QUERYYYYYYYYYY: ", q["id"], " predicted as unknown with threshold ", t)
                                 match_scores.append(-np.inf)
                                 labels.append(0)
                                 per_query_sorted_indices[q_idx] = [-1]
@@ -515,7 +512,7 @@ def run_dev():
 
     # Save CSV
     df = pd.DataFrame(rows)
-    df = df.sort_values(by=["descriptor", "distance", "distance_type", "threshold"])
+    df = df.sort_values(by=["descriptor", "distance", "distance_type", "discarding_type", "threshold"])
     io_config.RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     df.to_csv(io_config.RESULTS_DIR / "dev_scores_all_thresholds.csv", index=False)
     log.info(f"✅ Results saved to {io_config.RESULTS_DIR}/dev_scores_all_thresholds.csv (with F1 for all thresholds)")
