@@ -394,79 +394,116 @@ def run_dev():
                             if score > h[0][0]:
                                 heapq.heapreplace(h, (score, db_idx))
 
-                # After scanning DB, evaluate heaps: compute match_scores vector and labels
-                match_scores = []
-                labels = []
+
                 # Also prepare per-query sorted entries for AP@K
                 per_query_sorted_indices = [None] * query_count
+                for unknown_detection_type in keypoint_descriptors_config.DISCARDING_TYPES:
+                    for t in unknown_detection_type["thresholds"]:
+                        
+                        match_scores = []
+                        labels = []
+                        labels_gt = []
+                    
+                        for q_idx, q in enumerate(queries):
+                            gt = q["gt"]
+                            if gt != [-1]:
+                                labels_gt.append(1)
+                            else:   
+                                labels_gt.append(0)
+                            h = heaps[q_idx]
 
-                for q_idx, q in enumerate(queries):
-                    gt = q["gt"]
-                    # If GT indicates ignore: skip in metrics
-                    if gt == [-1]:
-                        per_query_sorted_indices[q_idx] = []
-                        continue
+                            predicted_unknown = False
+                            if len(h) == 0:
+                                predicted_unknown = True
+                                best_score = 0.0
+                                sorted_indices = []
+                            else:
+                                sorted_entries = sorted(h, key=lambda x: -x[0])
+                                best_score = sorted_entries[0][0]
 
-                    h = heaps[q_idx]
-                    if not h:
-                        best_score = 0.0
-                        sorted_indices = []
-                    else:
-                        # sorted in descending score order
-                        sorted_entries = sorted(h, key=lambda x: -x[0])
-                        best_score = sorted_entries[0][0]
-                        sorted_indices = [e[1] for e in sorted_entries]
+                                if unknown_detection_type == "threshold":
+                                    if best_score < t:
+                                        predicted_unknown = True
+                                
+                                if unknown_detection_type == "first_second_ratio":
+                                    if len(sorted_entries) > 1:
+                                        ratio = best_score / (sorted_entries[1][0] + 1e-8)
+                                        if ratio < t:
+                                            predicted_unknown = True
 
-                    match_scores.append(best_score)
-                    labels.append(1 if gt != [-1] else 0)
-                    per_query_sorted_indices[q_idx] = sorted_indices
+                            if predicted_unknown:
+                                match_scores.append(-np.inf)
+                                labels.append(0)
+                                per_query_sorted_indices[q_idx] = [-1]
+                                continue
+                            else:
+                                if h:
+                                    # sorted in descending score order
+                                    sorted_entries = sorted(h, key=lambda x: -x[0])
+                                    best_score = sorted_entries[0][0]
+                                    sorted_indices = [e[1] for e in sorted_entries]
 
-                # Convert to numpy arrays for threshold evaluation
-                if len(match_scores) > 0:
-                    match_scores_arr = np.array(match_scores)
-                    labels_arr = np.array(labels)
-                else:
-                    match_scores_arr = np.array([])
-                    labels_arr = np.array([])
+                            match_scores.append(best_score)
+                            labels.append(1)
+                            per_query_sorted_indices[q_idx] = sorted_indices
 
-                # Evaluate across multiple thresholds (F1)
-                thresholds = keypoint_descriptors_config.THRESHOLDS_TO_DISCARD
-                for t in thresholds:
-                    if match_scores_arr.size == 0:
-                        f1 = 0.0
-                    else:
-                        y_pred = (match_scores_arr >= t).astype(int)
-                        _, _, f1, _ = precision_recall_fscore_support(labels_arr, y_pred, average='binary', zero_division=0)
 
-                    # Compute mAPs across queries (AP@K)
-                    descriptor_scores_sums = np.zeros(len(eval_ks))
-                    count_valid = 0
-                    for q_idx, q in enumerate(queries):
-                        gt = q["gt"]
-                        if gt == [-1]:
-                            continue
-                        sorted_indices = per_query_sorted_indices[q_idx]
-                        # ensure list
-                        if sorted_indices is None:
-                            sorted_indices = []
-                        for k_idx, eval_k in enumerate(eval_ks):
-                            preds_k = sorted_indices[:eval_k]
-                            score_ap = global_metrics.average_precision_k(gt, preds_k, eval_k)
-                            descriptor_scores_sums[k_idx] += score_ap
-                        count_valid += 1
 
-                    if count_valid > 0:
-                        avg_scores = descriptor_scores_sums / count_valid
-                        rows.append({
-                            "descriptor": desc_name,
-                            "distance": dist_entry["name"],
-                            "distance_type": dist_entry.get("distance_type", "N/A"),
-                            "threshold": float(t),
-                            "mAP@1": avg_scores[0],
-                            "mAP@5": avg_scores[1] if len(avg_scores) > 1 else avg_scores[0],
-                            "mean_mAP": float(np.mean(avg_scores)),
-                            "F1": float(f1)
-                        })
+                        # Convert to numpy arrays for threshold evaluation
+                        if len(match_scores) > 0:
+                            match_scores_arr = np.array(match_scores)
+                            labels_arr = np.array(labels)
+                            labels_gt_arr = np.array(labels_gt)
+                        else:
+                            match_scores_arr = np.array([])
+                            labels_arr = np.array([])
+                            labels_gt_arr = np.array([])
+
+                        
+                        if match_scores_arr.size == 0:
+                            f1 = 0.0
+                        else:
+                            _, _, f1, _ = precision_recall_fscore_support(labels_arr, labels_gt_arr, average='binary', zero_division=0)
+
+                        # Compute mAPs across queries (AP@K)
+                        descriptor_scores_sums = np.zeros(len(eval_ks))
+                        count_valid = 0
+                        for q_idx, q in enumerate(queries):
+                            gt = q["gt"]
+
+                            sorted_indices = per_query_sorted_indices[q_idx]
+                            # ensure list
+                            if sorted_indices is None:
+                                sorted_indices = []
+
+                            # We predicted unknown for this query
+                            if sorted_indices == [-1]:
+                                if gt == [-1]:
+                                    score_ap = 1.0
+                                else:
+                                    score_ap = 0.0
+                                for k_idx, eval_k in enumerate(eval_ks):
+                                    descriptor_scores_sums[k_idx] += score_ap                               
+                            else:
+                                for k_idx, eval_k in enumerate(eval_ks):
+                                    preds_k = sorted_indices[:eval_k]
+                                    score_ap = global_metrics.average_precision_k(gt, preds_k, eval_k)
+                                    descriptor_scores_sums[k_idx] += score_ap
+                            count_valid += 1
+
+                        if count_valid > 0:
+                            avg_scores = descriptor_scores_sums / count_valid
+                            rows.append({
+                                "descriptor": desc_name,
+                                "distance": dist_entry["name"],
+                                "distance_type": dist_entry.get("distance_type", "N/A"),
+                                "discarding_type": unknown_detection_type["type"],
+                                "threshold": float(t),
+                                "mAP@1": avg_scores[0],
+                                "mAP@5": avg_scores[1] if len(avg_scores) > 1 else avg_scores[0],
+                                "mean_mAP": float(np.mean(avg_scores)),
+                                "F1": float(f1)
+                            })
                 # end thresholds loop
 
             # end distance entries loop

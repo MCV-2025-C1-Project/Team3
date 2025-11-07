@@ -54,6 +54,13 @@ THRESHOLDS_TO_DISCARD = [
     #40
     ]
 
+DISCARDING_TYPES = [
+    {"type": "threshold",
+     "thresholds": [0.5, 1, 3, 5, 10, 20, 40, 80]},
+    {"type": "first_second_ratio",
+     "thresholds": [1.01, 1.05, 1.1, 1.2, 1.3, 1.5, 2.0]},
+]
+
 
 
 
