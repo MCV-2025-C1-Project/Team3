@@ -399,7 +399,6 @@ def run_dev():
                 per_query_sorted_indices = [None] * query_count
                 for unknown_detection_type in keypoint_descriptors_config.DISCARDING_TYPES:
                     for t in unknown_detection_type["thresholds"]:
-                        
                         match_scores = []
                         labels = []
                         labels_gt = []
@@ -421,17 +420,21 @@ def run_dev():
                                 sorted_entries = sorted(h, key=lambda x: -x[0])
                                 best_score = sorted_entries[0][0]
 
-                                if unknown_detection_type == "threshold":
+                                if unknown_detection_type["type"] == "threshold":
+                                    print(q_idx, " QUERY ID: ", q["id"])
+                                    print("BEST SCORE: ", best_score, " THRESHOLD: ", t)
                                     if best_score < t:
+                                        
                                         predicted_unknown = True
                                 
-                                if unknown_detection_type == "first_second_ratio":
+                                if unknown_detection_type["type"] == "first_second_ratio":
                                     if len(sorted_entries) > 1:
                                         ratio = best_score / (sorted_entries[1][0] + 1e-8)
                                         if ratio < t:
                                             predicted_unknown = True
 
                             if predicted_unknown:
+                                print("QUERYYYYYYYYYY: ", q["id"], " predicted as unknown with threshold ", t)
                                 match_scores.append(-np.inf)
                                 labels.append(0)
                                 per_query_sorted_indices[q_idx] = [-1]
