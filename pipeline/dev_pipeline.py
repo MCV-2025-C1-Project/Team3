@@ -466,7 +466,7 @@ def run_dev():
                         if match_scores_arr.size == 0:
                             f1 = 0.0
                         else:
-                            _, _, f1, _ = precision_recall_fscore_support(labels_arr, labels_gt_arr, average='binary', zero_division=0)
+                            discarding_precision, discarding_recall, f1, _ = precision_recall_fscore_support(labels_arr, labels_gt_arr, average='binary', zero_division=0)
 
                         # Compute mAPs across queries (AP@K)
                         descriptor_scores_sums = np.zeros(len(eval_ks))
@@ -497,7 +497,9 @@ def run_dev():
                                 "mAP@1": avg_scores[0],
                                 "mAP@5": avg_scores[1] if len(avg_scores) > 1 else avg_scores[0],
                                 "mean_mAP": float(np.mean(avg_scores)),
-                                "F1": float(f1)
+                                "F1": float(f1),
+                                "discarding_precision": float(discarding_precision),
+                                "discarding_recall": float(discarding_recall)
                             })
                 # end thresholds loop
 

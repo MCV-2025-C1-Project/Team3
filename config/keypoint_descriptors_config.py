@@ -18,22 +18,22 @@ KEYPOINT_TECHNIQUES = {
     #               1.6,
     #               1.8
     #             ],
-    # },
-    "orb": {
-       "nfeatures": [500, 
+    #},
+    #"orb": {
+    #   "nfeatures": [500, 
                     #  750,
                     #  1000,
     #                  1500
-                   ],
-    },
-    #"color_sift": {
-    #    "sigma": [
-    #        1.2,
-    ##        1.4,
-    #        1.6,
-    #        1.8
-    #    ],
+    #               ],
     #},
+    "color_sift": {
+        "sigma": [
+            1.2,
+            1.4,
+            1.6,
+            1.8
+        ],
+    },
 }
 
 LOCAL_DISTANCES = [
