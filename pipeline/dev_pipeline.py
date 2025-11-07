@@ -281,6 +281,9 @@ def run_dev():
             else:
                 gt_norm = [-1]
 
+            if len(gt_norm) > 1:
+                gt_norm = [gt_norm[0]]
+
             queries.append({
                 "orig_idx": i,
                 "id": base_id,
@@ -476,19 +479,11 @@ def run_dev():
                             if sorted_indices is None:
                                 sorted_indices = []
 
-                            # We predicted unknown for this query
-                            if sorted_indices == [-1]:
-                                if gt == [-1]:
-                                    score_ap = 1.0
-                                else:
-                                    score_ap = 0.0
-                                for k_idx, eval_k in enumerate(eval_ks):
-                                    descriptor_scores_sums[k_idx] += score_ap                               
-                            else:
-                                for k_idx, eval_k in enumerate(eval_ks):
-                                    preds_k = sorted_indices[:eval_k]
-                                    score_ap = global_metrics.average_precision_k(gt, preds_k, eval_k)
-                                    descriptor_scores_sums[k_idx] += score_ap
+                            
+                            for k_idx, eval_k in enumerate(eval_ks):
+                                preds_k = sorted_indices[:eval_k]
+                                score_ap = global_metrics.average_precision_k(gt, preds_k, eval_k)
+                                descriptor_scores_sums[k_idx] += score_ap
                             count_valid += 1
 
                         if count_valid > 0:
