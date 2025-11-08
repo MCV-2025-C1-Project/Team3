@@ -41,6 +41,7 @@ def compute_development_descriptors(WANTED_DESCRIPTORS, NAME_OF_DEV_SET, NUMBER_
             log.info(f"Doing background removal for image: {image_path.name}, please be patient")
             img, mask = get_masks(img)
 
+
             # Two paintings
             if len(img) == 2:
                 left_descs = [f(img[0], NAME_OF_DEV_SET, i, visualize=False) for f in WANTED_DESCRIPTORS]
@@ -171,6 +172,10 @@ def run_dev():
 
     # === Prepare descriptors and distances ===
     descriptors_names = [f.__name__ for f in DEV_KEYPOINT_DESCRIPTORS]
+    for i, desc_name in enumerate(descriptors_names):
+        descriptors_names[i] = sanitize_filename(desc_name)
+
+
     orb = "orb" == descriptors_names[0][:3]
     ALL_DISTANCE_ENTRIES = []
 
@@ -187,14 +192,14 @@ def run_dev():
     # Local matchers (unchanged)
     try:
         from utils.local_metrics import (
-            sift_match_count,
-            sift_match_normalized,
-            sift_match_geometric
+            match_count,
+            match_geometric,
+            match_reciprocal_count,
         )
         local_matchers = [
-            ("match_count", sift_match_count),
-            ("match_normalized", sift_match_normalized),
-            ("match_geometric", sift_match_geometric)
+            ("match_count", match_count),
+            ("match_geometric", match_geometric),
+            ("match_reciprocal_count", match_reciprocal_count)
         ]
         distance_types = ["L2", "L1", "HAMMING"]
         for name, fn in local_matchers:
@@ -217,6 +222,7 @@ def run_dev():
     eval_ks = list(general_config.K_VALUES)
     max_k = max(eval_ks)
     eps = 1e-16
+
 
     # === Compute dev descriptors (kept in memory) ===
     log.info("Computing descriptors for all dev images (kept in memory)...")
@@ -294,14 +300,13 @@ def run_dev():
     query_count = len(queries)
     log.info(f"Prepared {query_count} queries from {NUMBER_IMAGE_DEV} dev images (including splits).")
 
+
     rows = []
 
     # === Main loop: per descriptor type (desc_idx) we scan DB file for that descriptor ===
     for desc_idx, desc_name in enumerate(descriptors_names):
-        safe_name = sanitize_filename(desc_name)
-        print(f"DESC NAME: {desc_name}")
 
-        db_file_path = io_config.KEYPOINT_DESC_DIR / f"{safe_name}.h5"
+        db_file_path = io_config.KEYPOINT_DESC_DIR / f"{desc_name}.h5"
         if not db_file_path.exists():
             log.warning(f"DB file not found for descriptor {desc_name}: {db_file_path}")
             continue
@@ -427,12 +432,6 @@ def run_dev():
                                     if best_score < t:
                                         
                                         predicted_unknown = True
-                                
-                                if unknown_detection_type["type"] == "first_second_ratio":
-                                    if len(sorted_entries) > 1:
-                                        ratio = best_score / (sorted_entries[1][0] + 1e-8)
-                                        if ratio < t:
-                                            predicted_unknown = True
 
                             if predicted_unknown:
                                 match_scores.append(-np.inf)
@@ -510,6 +509,7 @@ def run_dev():
     # Save CSV
     df = pd.DataFrame(rows)
     df = df.sort_values(by=["descriptor", "distance", "distance_type", "discarding_type", "threshold"])
+    df = df.sort_values(by=["mean_mAP"], ascending=False)
     io_config.RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     df.to_csv(io_config.RESULTS_DIR / "dev_scores_all_thresholds.csv", index=False)
     log.info(f"✅ Results saved to {io_config.RESULTS_DIR}/dev_scores_all_thresholds.csv (with F1 for all thresholds)")

@@ -3,8 +3,6 @@ import cv2
 import numpy as np
 import math
 
-RATIO_TEST = 0.75
-
 
 def _extract_descs(d):
     """
@@ -33,7 +31,6 @@ def _extract_descs(d):
             tmp = np.zeros((kps.shape[0], 2), dtype=np.float32)
             tmp[:, :kps.shape[1]] = kps
             kps = tmp
-
     return descs, kps
 
 
@@ -59,7 +56,7 @@ def _norm_from_string(distance_type):
     return mapping.get(distance_type, cv2.NORM_L2), distance_type
 
 
-def _get_safe_matcher(des1, des2, distance_type=None, for_knn=True):
+def _get_safe_matcher(des1, des2, distance_type=None, for_knn=True, cross_check=False):
     """
     Build a BFMatcher with a norm that is compatible with descriptor dtype.
     - If the requested distance_type conflicts with dtype, prefer dtype-inferred norm.
@@ -71,13 +68,12 @@ def _get_safe_matcher(des1, des2, distance_type=None, for_knn=True):
     # Prefer inferred norm from dtype to avoid OpenCV assertion failures.
     norm = inferred_norm
 
-    # If the requested norm is compatible with inferred, accept it (e.g., HAMMING2 vs HAMMING, L2 vs L1/L2SQR)
+    # If the requested norm is compatible with inferred, accept it (e.g., HAMMING2 vs HAMMING, L2 vs L1)
     if wanted_norm in (cv2.NORM_HAMMING, cv2.NORM_HAMMING2) and inferred_norm == cv2.NORM_HAMMING:
         norm = wanted_norm
     elif wanted_norm in (cv2.NORM_L2, cv2.NORM_L2SQR, cv2.NORM_L1) and inferred_norm == cv2.NORM_L2:
         norm = wanted_norm
-
-    cross_check = False if for_knn else True
+    cross_check = True if not for_knn and cross_check else False
     return cv2.BFMatcher(norm, crossCheck=cross_check)
 
 
@@ -96,13 +92,18 @@ def _knn_with_fallback(des1, des2, k=2, distance_type=None):
 
 # ----------------------------- Local matching metrics -----------------------------
 
-def sift_match_count(dev_desc, db_desc, distance_type="L2"):
+def match_count(dev_desc, db_desc, distance_type="L2",ratio_test=0.75):
     """
     Raw count of 'good matches' after Lowe's ratio test (k=2).
     Returns float for pipeline consistency.
     """
     des1, _ = _extract_descs(dev_desc)
     des2, _ = _extract_descs(db_desc)
+
+    if des1.dtype != des2.dtype:
+        if des1.dtype == np.uint8 or des2.dtype == np.uint8:
+            des1 = des1.astype(np.uint8)
+            des2 = des2.astype(np.uint8)
 
     if des1.size == 0 or des2.size == 0:
         return 0.0
@@ -114,64 +115,39 @@ def sift_match_count(dev_desc, db_desc, distance_type="L2"):
         if len(m_n) < 2:
             continue
         m, n = m_n
-        if m.distance < RATIO_TEST * n.distance:
+        if m.distance < ratio_test * n.distance:
             good += 1
-
     return float(good)
 
 
-def sift_match_normalized(dev_desc, db_desc, distance_type="L2"):
-    """
-    Normalized score: good_matches / sqrt(N1 * N2).
-    Helpful when images have very different keypoint counts.
-    """
-    des1, _ = _extract_descs(dev_desc)
-    des2, _ = _extract_descs(db_desc)
-
-    n1, n2 = des1.shape[0], des2.shape[0]
-    if n1 == 0 or n2 == 0:
-        return 0.0
-
-    matches = _knn_with_fallback(des1, des2, k=2, distance_type=distance_type)
-
-    good = 0
-    for m_n in matches:
-        if len(m_n) < 2:
-            continue
-        m, n = m_n
-        if m.distance < RATIO_TEST * n.distance:
-            good += 1
-
-    denom = math.sqrt(max(n1, 1) * max(n2, 1))
-    return float(good) / denom if denom > 0 else 0.0
-
-
-def sift_match_geometric(dev_desc, db_desc, distance_type="L2", reproj_thresh=5.0):
-    """
-    Lowe's ratio (k=2) + geometric verification via RANSAC homography.
-    Returns the number of inliers (higher = better). Returns 0 if it fails.
-    Requires valid keypoint coordinates in both dev_desc and db_desc.
-    """
+def match_geometric(dev_desc, db_desc, distance_type="L2", reproj_thresh=5.0):
     des1, kp1 = _extract_descs(dev_desc)
     des2, kp2 = _extract_descs(db_desc)
 
     if des1.size == 0 or des2.size == 0 or kp1.shape[0] == 0 or kp2.shape[0] == 0:
         return 0.0
 
-    matches = _knn_with_fallback(des1, des2, k=2, distance_type=distance_type)
+    if des1.dtype != des2.dtype:
+        if des1.dtype == np.uint8 or des2.dtype == np.uint8:
+            des1 = des1.astype(np.uint8)
+            des2 = des2.astype(np.uint8)
+    BF = _get_safe_matcher(des1, des2, distance_type=distance_type, for_knn=True)
+    try:
+        matches = BF.knnMatch(des1, des2, k=2)
+    except cv2.error:
+        BF = cv2.BFMatcher(_infer_norm_from_dtype(des1), crossCheck=False)
+        matches = BF.knnMatch(des1, des2, k=2)
 
     good_matches = []
     for m_n in matches:
         if len(m_n) < 2:
             continue
         m, n = m_n
-        if m.distance < RATIO_TEST * n.distance:
-            good_matches.append(m)
+        good_matches.append(m)
 
     if len(good_matches) < 4:
         return 0.0
 
-    # Build point arrays (N, 1, 2) for cv2.findHomography
     src_pts = np.float32([kp1[m.queryIdx] for m in good_matches]).reshape(-1, 1, 2)
     dst_pts = np.float32([kp2[m.trainIdx] for m in good_matches]).reshape(-1, 1, 2)
 
@@ -180,3 +156,29 @@ def sift_match_geometric(dev_desc, db_desc, distance_type="L2", reproj_thresh=5.
         return 0.0
 
     return float(np.sum(mask))
+
+
+
+def match_reciprocal_count(dev_desc, db_desc, distance_type="L2"):
+    des1, _ = _extract_descs(dev_desc)
+    des2, _ = _extract_descs(db_desc)
+
+    if des1.dtype != des2.dtype:
+        if des1.dtype == np.uint8 or des2.dtype == np.uint8:
+            des1 = des1.astype(np.uint8)
+            des2 = des2.astype(np.uint8)
+        else:
+            des1 = des1.astype(np.float32)
+            des2 = des2.astype(np.float32)
+
+    if des1.size == 0 or des2.size == 0:
+        return 0.0
+
+    try:
+        BF = _get_safe_matcher(des1, des2, distance_type=distance_type, for_knn=False, cross_check=True)
+        matches = BF.match(des1, des2)
+    except cv2.error:
+        BF = cv2.BFMatcher(_infer_norm_from_dtype(des1), crossCheck=True)
+        matches = BF.match(des1, des2)
+
+    return float(len(matches)) if matches else 0.0

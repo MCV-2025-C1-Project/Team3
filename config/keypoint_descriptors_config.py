@@ -6,59 +6,58 @@ Grid search generation + named configs for clarity.
 from itertools import product, combinations
 import descriptors.keypoint_descriptors.keypoint_descriptors_func as descriptors
 from utils import global_metrics
-from utils.local_metrics import sift_match_count, sift_match_normalized, sift_match_geometric
+from utils.local_metrics import match_count, match_geometric,match_reciprocal_count
 from pipeline.descriptor_creator import sanitize_filename
 
 # Search space
 KEYPOINT_TECHNIQUES = {
 
-    # "sift": {
-    #     "sigma": [1.2, 
-    #               1.4,
-    #               1.6,
-    #               1.8
-    #             ],
-    #},
-    #"orb": {
-    #   "nfeatures": [500, 
-                    #  750,
-                    #  1000,
-    #                  1500
-    #               ],
-    #},
+     "sift": {
+         "sigma": [1.2, 
+                   1.6,
+                   1.8,
+                   2.0
+                 ],
+        "nfeatures": [500, 
+                    1000,
+                    ],
+        "contrast_threshold": [0.01, 0.06]
+    },
+    "orb": {
+       "nfeatures": [500, 
+                    750,
+                    1000,
+                    1500,
+                    2000
+                   ],
+        "fastThreshold": [10, 15, 20,25]
+
+    },
     "color_sift": {
         "sigma": [
             1.2,
-            1.4,
             1.6,
-            1.8
+            1.8,
+            2.0
         ],
+        "nfeatures": [
+            500,
+            1000,
+        ],
+        "contrast_threshold": [0.01, 0.06]
     },
 }
 
 LOCAL_DISTANCES = [
-    sift_match_count,
-    sift_match_normalized,
-    sift_match_geometric
+    match_count,
+    match_geometric,
+    match_reciprocal_count,
 ]
 
-THRESHOLDS_TO_DISCARD = [
-    #1,
-    5,
-    10,
-    15,
-    #20,
-    #25,
-    30,
-    #35,
-    #40
-    ]
 
 DISCARDING_TYPES = [
     {"type": "threshold",
-     "thresholds": [0.5, 1, 3, 5, 10, 20, 40, 80]},
-    {"type": "first_second_ratio",
-     "thresholds": [1.01, 1.05, 1.1, 1.2, 1.3, 1.5, 2.0]},
+     "thresholds": [1, 10, 15, 20, 30, 50, 100, 200]},
 ]
 
 
