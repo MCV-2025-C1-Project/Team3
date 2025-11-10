@@ -1,4 +1,7 @@
 # MCV-C1 Project: Content Based Image Retrieval | Team3
+
+Slides link : [https://docs.google.com/presentation/d/1HS-VK88yAKx8bQlBRXPwz5wIBSwJnpshM9jFosxHHHI/edit?usp=sharing](https://docs.google.com/presentation/d/1HS-VK88yAKx8bQlBRXPwz5wIBSwJnpshM9jFosxHHHI/edit?usp=sharing)
+
 ## Project Description
 This project contains all the code necessary to build an end-to-end image retrieval system. The system allows users to query images and retrieve the most visually similar results from a database using various feature extraction and distance functions.
 
