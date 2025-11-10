@@ -12,39 +12,30 @@ from pipeline.descriptor_creator import sanitize_filename
 # Search space
 KEYPOINT_TECHNIQUES = {
 
-     "sift": {
+    "sift": {
          "sigma": [1.2, 
-                   1.6,
                    1.8,
-                   2.0
+                   2.0,
                  ],
-        "nfeatures": [500, 
-                    1000,
-                    ],
-        "contrast_threshold": [0.01, 0.06]
+       "nfeatures": [500],
+        "contrast_threshold": [0.01,0.04,0.06]
     },
     "orb": {
        "nfeatures": [500, 
-                    750,
-                    1000,
-                    1500,
-                    2000
                    ],
-        "fastThreshold": [10, 15, 20,25]
+        "fastThreshold": [15, 20,25]
 
     },
     "color_sift": {
         "sigma": [
             1.2,
-            1.6,
             1.8,
             2.0
         ],
         "nfeatures": [
             500,
-            1000,
         ],
-        "contrast_threshold": [0.01, 0.06]
+        "contrast_threshold": [0.01,0.04,0.06]
     },
 }
 
@@ -57,7 +48,7 @@ LOCAL_DISTANCES = [
 
 DISCARDING_TYPES = [
     {"type": "threshold",
-     "thresholds": [1, 10, 15, 20, 30, 50, 100, 200]},
+     "thresholds": [1,5,7,10,12,15,17,20, 30, 50, 100]},
 ]
 
 
@@ -145,4 +136,4 @@ PREDICTING_COLOR_DESCRIPTORS = [
     (PREDICT_COLOR_DESCRIPTORS[1], metrics.hellinger_kernel),
 ]
 '''
-PREDICTING_KEYPOINT_DESCRIPTORS = [(ALL_KEYPOINT_DESCRIPTORS[0], global_metrics.canberra_distance)]
+PREDICTING_KEYPOINT_DESCRIPTORS = [(ALL_KEYPOINT_DESCRIPTORS[0], match_geometric)]

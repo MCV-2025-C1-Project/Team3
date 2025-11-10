@@ -120,17 +120,20 @@ def match_count(dev_desc, db_desc, distance_type="L2",ratio_test=0.75):
     return float(good)
 
 
-def match_geometric(dev_desc, db_desc, distance_type="L2", reproj_thresh=5.0):
+def match_geometric(dev_desc, db_desc, distance_type="L2", ratio_test=0.75, reproj_thresh=5.0):
     des1, kp1 = _extract_descs(dev_desc)
     des2, kp2 = _extract_descs(db_desc)
 
     if des1.size == 0 or des2.size == 0 or kp1.shape[0] == 0 or kp2.shape[0] == 0:
         return 0.0
 
+    # Alinear dtypes
     if des1.dtype != des2.dtype:
         if des1.dtype == np.uint8 or des2.dtype == np.uint8:
             des1 = des1.astype(np.uint8)
             des2 = des2.astype(np.uint8)
+
+    # Matcher robusto
     BF = _get_safe_matcher(des1, des2, distance_type=distance_type, for_knn=True)
     try:
         matches = BF.knnMatch(des1, des2, k=2)
@@ -138,12 +141,14 @@ def match_geometric(dev_desc, db_desc, distance_type="L2", reproj_thresh=5.0):
         BF = cv2.BFMatcher(_infer_norm_from_dtype(des1), crossCheck=False)
         matches = BF.knnMatch(des1, des2, k=2)
 
+    # Ratio test de Lowe
     good_matches = []
     for m_n in matches:
         if len(m_n) < 2:
             continue
         m, n = m_n
-        good_matches.append(m)
+        if m.distance < ratio_test * n.distance:
+            good_matches.append(m)
 
     if len(good_matches) < 4:
         return 0.0
@@ -155,7 +160,7 @@ def match_geometric(dev_desc, db_desc, distance_type="L2", reproj_thresh=5.0):
     if H is None or mask is None:
         return 0.0
 
-    return float(np.sum(mask))
+    return float(np.sum(mask.ravel() > 0))
 
 
 

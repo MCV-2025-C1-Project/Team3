@@ -8,7 +8,7 @@ import logging.config
 
 from config import general_config
 from pipeline.descriptor_creator import precompute_descriptors
-from pipeline.dev_pipeline import run_dev
+from pipeline.dev_pipeline_3 import run_dev
 from pipeline.test_pipeline import predict_and_save_results
 
 logging.config.fileConfig("utils/logging.ini", disable_existing_loggers=False)

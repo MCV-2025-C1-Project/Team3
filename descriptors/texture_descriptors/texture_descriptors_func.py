@@ -128,10 +128,7 @@ def generic_texture_descriptor(descriptor_type: str,
                     channel_labels=[descriptor_type],
                     channel_sizes=[len(hist)]
                 )
-        return {
-            "type": "global",
-            "descriptors": hist
-        }
+        return hist
         
 
     descriptor_fn.__name__ = f"{descriptor_type}_{descriptor_specific_parameters}"
@@ -358,4 +355,3 @@ def dwt_descriptor(image, wavelet='db1', levels=2, divisions=8, top_k=20):
     desc /= np.sum(desc) + 1e-8
 
     return desc
-
